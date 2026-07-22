@@ -16,3 +16,5 @@ allowBuilds:
   less: true
   sharp: true
   "@scarf/scarf": true
+  '@google/genai': true
+  protobufjs: true
