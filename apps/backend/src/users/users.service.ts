@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { QueryUsersDto } from './dto/query-users.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 import { Role } from '@prisma/client';
 
 @Injectable()
@@ -19,6 +20,7 @@ export class UsersService {
         email: true,
         role: true,
         department: true,
+        isActive: true,
         image: true,
         createdAt: true,
         updatedAt: true,
@@ -52,6 +54,7 @@ export class UsersService {
         email: true,
         role: true,
         department: true,
+        isActive: true,
         image: true,
         updatedAt: true,
       },
@@ -85,7 +88,7 @@ export class UsersService {
   }
 
   async findAll(query: QueryUsersDto) {
-    const { page = 1, pageSize = 10, search, department, role } = query;
+    const { page = 1, pageSize = 10, search, department, role, isActive } = query;
     const skip = (page - 1) * pageSize;
 
     const where: any = {};
@@ -105,6 +108,10 @@ export class UsersService {
       where.role = role;
     }
 
+    if (isActive !== undefined) {
+      where.isActive = isActive;
+    }
+
     const [users, total] = await Promise.all([
       this.prisma.user.findMany({
         where,
@@ -117,6 +124,7 @@ export class UsersService {
           email: true,
           role: true,
           department: true,
+          isActive: true,
           image: true,
           createdAt: true,
           _count: {
@@ -142,11 +150,65 @@ export class UsersService {
     };
   }
 
-  async updateRole(id: string, role: Role) {
-    const user = await this.prisma.user.findUnique({ where: { id } });
+  async findOne(id: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        department: true,
+        isActive: true,
+        image: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
+
+    return user;
+  }
+
+  async updateStatus(id: string, isActive: boolean) {
+    await this.findOne(id);
+
+    return this.prisma.user.update({
+      where: { id },
+      data: { isActive },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        department: true,
+        isActive: true,
+      },
+    });
+  }
+
+  async updateDepartment(id: string, department: string) {
+    await this.findOne(id);
+
+    return this.prisma.user.update({
+      where: { id },
+      data: { department },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        department: true,
+        isActive: true,
+      },
+    });
+  }
+
+  async updateRole(id: string, role: Role) {
+    await this.findOne(id);
 
     return this.prisma.user.update({
       where: { id },
@@ -156,6 +218,27 @@ export class UsersService {
         name: true,
         email: true,
         role: true,
+        department: true,
+        isActive: true,
+      },
+    });
+  }
+
+  async updateUser(id: string, dto: UpdateUserDto) {
+    await this.findOne(id);
+
+    return this.prisma.user.update({
+      where: { id },
+      data: dto,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        department: true,
+        isActive: true,
+        image: true,
+        updatedAt: true,
       },
     });
   }

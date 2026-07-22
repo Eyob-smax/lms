@@ -12,7 +12,11 @@ describe('UsersController', () => {
     updateProfile: jest.fn(),
     changePassword: jest.fn(),
     findAll: jest.fn(),
+    findOne: jest.fn(),
+    updateStatus: jest.fn(),
+    updateDepartment: jest.fn(),
     updateRole: jest.fn(),
+    updateUser: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -57,9 +61,33 @@ describe('UsersController', () => {
     expect(res).toEqual({ data: [] });
   });
 
+  it('findOne', async () => {
+    mockUsersService.findOne.mockResolvedValue({ id: 'u1' });
+    const res = await controller.findOne('u1');
+    expect(res).toEqual({ id: 'u1' });
+  });
+
+  it('updateStatus', async () => {
+    mockUsersService.updateStatus.mockResolvedValue({ id: 'u1', isActive: false });
+    const res = await controller.updateStatus('u1', { isActive: false });
+    expect(res.isActive).toBe(false);
+  });
+
+  it('updateDepartment', async () => {
+    mockUsersService.updateDepartment.mockResolvedValue({ id: 'u1', department: 'SDR' });
+    const res = await controller.updateDepartment('u1', { department: 'SDR' });
+    expect(res.department).toBe('SDR');
+  });
+
   it('updateRole', async () => {
     mockUsersService.updateRole.mockResolvedValue({ id: 'u1', role: Role.ADMIN });
     const res = await controller.updateRole('u1', Role.ADMIN);
     expect(res.role).toBe(Role.ADMIN);
+  });
+
+  it('updateUser', async () => {
+    mockUsersService.updateUser.mockResolvedValue({ id: 'u1', name: 'New' });
+    const res = await controller.updateUser('u1', { name: 'New' });
+    expect(res).toEqual({ id: 'u1', name: 'New' });
   });
 });

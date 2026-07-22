@@ -38,7 +38,7 @@ describe('UsersService', () => {
 
   describe('getProfile', () => {
     it('should return user profile if found', async () => {
-      const mockUser = { id: 'u1', name: 'Jane Doe', email: 'jane@example.com', role: Role.AGENT, department: 'Customer Support' };
+      const mockUser = { id: 'u1', name: 'Jane Doe', email: 'jane@example.com', role: Role.AGENT, department: 'Customer Support', isActive: true };
       mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
 
       const result = await service.getProfile('u1');
@@ -82,12 +82,45 @@ describe('UsersService', () => {
 
   describe('findAll', () => {
     it('should return paginated user list', async () => {
-      mockPrismaService.user.findMany.mockResolvedValue([{ id: 'u1' }]);
+      mockPrismaService.user.findMany.mockResolvedValue([{ id: 'u1', isActive: true }]);
       mockPrismaService.user.count.mockResolvedValue(1);
 
-      const result = await service.findAll({ page: 1, pageSize: 10 });
-      expect(result.data).toEqual([{ id: 'u1' }]);
+      const result = await service.findAll({ page: 1, pageSize: 10, isActive: true });
+      expect(result.data).toEqual([{ id: 'u1', isActive: true }]);
       expect(result.meta.total).toBe(1);
+    });
+  });
+
+  describe('findOne', () => {
+    it('should return user details if found', async () => {
+      mockPrismaService.user.findUnique.mockResolvedValue({ id: 'u1', isActive: true });
+      const result = await service.findOne('u1');
+      expect(result).toEqual({ id: 'u1', isActive: true });
+    });
+
+    it('should throw NotFoundException if missing', async () => {
+      mockPrismaService.user.findUnique.mockResolvedValue(null);
+      await expect(service.findOne('u1')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('updateStatus', () => {
+    it('should toggle user active status', async () => {
+      mockPrismaService.user.findUnique.mockResolvedValue({ id: 'u1' });
+      mockPrismaService.user.update.mockResolvedValue({ id: 'u1', isActive: false });
+
+      const result = await service.updateStatus('u1', false);
+      expect(result.isActive).toBe(false);
+    });
+  });
+
+  describe('updateDepartment', () => {
+    it('should re-assign department', async () => {
+      mockPrismaService.user.findUnique.mockResolvedValue({ id: 'u1' });
+      mockPrismaService.user.update.mockResolvedValue({ id: 'u1', department: 'SDR' });
+
+      const result = await service.updateDepartment('u1', 'SDR');
+      expect(result.department).toBe('SDR');
     });
   });
 
@@ -98,6 +131,16 @@ describe('UsersService', () => {
 
       const result = await service.updateRole('u1', Role.ADMIN);
       expect(result.role).toBe(Role.ADMIN);
+    });
+  });
+
+  describe('updateUser', () => {
+    it('should update full user account', async () => {
+      mockPrismaService.user.findUnique.mockResolvedValue({ id: 'u1' });
+      mockPrismaService.user.update.mockResolvedValue({ id: 'u1', name: 'New Name' });
+
+      const result = await service.updateUser('u1', { name: 'New Name' });
+      expect(result).toEqual({ id: 'u1', name: 'New Name' });
     });
   });
 });

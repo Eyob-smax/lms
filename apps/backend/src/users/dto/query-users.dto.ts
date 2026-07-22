@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { Type, Transform } from 'class-transformer';
 import { Role } from '@prisma/client';
 
 export class QueryUsersDto {
@@ -18,6 +18,12 @@ export class QueryUsersDto {
   @IsOptional()
   @IsEnum(Role)
   role?: Role;
+
+  @ApiPropertyOptional({ description: 'Filter by active status (true/false)' })
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  isActive?: boolean;
 
   @ApiPropertyOptional({ description: 'Page number', default: 1 })
   @Type(() => Number)
