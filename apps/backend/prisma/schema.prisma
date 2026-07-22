@@ -1,0 +1,253 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  AGENT
+}
+
+enum LessonType {
+  TEXT
+  VIDEO
+  PDF_FILE
+  SLIDES
+}
+
+enum QuestionType {
+  MCQ
+  TRUE_FALSE
+  SHORT_ANSWER
+}
+
+enum CourseStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum EnrollmentStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+model User {
+  id             String       @id @default(uuid())
+  name           String
+  email          String       @unique
+  emailVerified  Boolean      @default(false)
+  image          String?
+  passwordHash   String?
+  role           Role         @default(AGENT)
+  department     String       @default("Sales")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  sessions       Session[]
+  accounts       Account[]
+  enrollments    Enrollment[]
+  createdCourses Course[]     @relation("CreatedCourses")
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Account {
+  id                    String    @id @default(uuid())
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+}
+
+model Verification {
+  id         String   @id @default(uuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Course {
+  id              String       @id @default(uuid())
+  courseCode      String       @unique // Auto-generated: CRS-2024-001
+  title           String
+  description     String
+  category        String
+  department      String?      // Optional department restriction
+  difficulty      String       // Beginner, Intermediate, Advanced
+  durationMinutes Int
+  thumbnailUrl    String?
+  tags            String[]     @default([]) // Flexible tagging for search/filter
+  isMandatory     Boolean      @default(false) // Required courses shown with badge
+  status          CourseStatus @default(DRAFT)
+  version         Int          @default(1)
+  publishedAt     DateTime?    // When was it last published
+  createdById     String
+  createdBy       User         @relation("CreatedCourses", fields: [createdById], references: [id])
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  modules         Module[]
+  quizzes         Quiz[]
+  enrollments     Enrollment[]
+}
+
+model Module {
+  id          String   @id @default(uuid())
+  courseId     String
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title       String
+  description String?  // Optional module description
+  order       Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  lessons     Lesson[]
+}
+
+model Lesson {
+  id                String           @id @default(uuid())
+  moduleId          String
+  module            Module           @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  title             String
+  description       String?          // Brief lesson summary for outlines
+  lessonType        LessonType       @default(TEXT)
+  content           String           // Rich text / markdown content
+  videoUrl          String?
+  fileAttachmentUrl String?          // For downloadable PDF attachments
+  slidesUrl         String?
+  durationMinutes   Int              @default(10)
+  order             Int
+  isPublished       Boolean          @default(true) // Can hide individual lessons
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  progress          LessonProgress[]
+}
+
+model Quiz {
+  id               String         @id @default(uuid())
+  courseId         String
+  course           Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title            String
+  passingScorePct  Int            @default(80)
+  maxAttempts      Int            @default(3)
+  timeLimitMinutes Int?
+  randomize        Boolean        @default(true)
+  questions        QuizQuestion[]
+  attempts         QuizAttempt[]
+}
+
+model QuizQuestion {
+  id           String       @id @default(uuid())
+  quizId       String
+  quiz         Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  questionText String
+  questionType QuestionType @default(MCQ)
+  explanation  String?
+  points       Int          @default(1)
+  order        Int
+  options      QuizOption[]
+  answers      QuizAnswer[]
+}
+
+model QuizOption {
+  id         String       @id @default(uuid())
+  questionId String
+  question   QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  optionText String
+  isCorrect  Boolean      @default(false)
+  answers    QuizAnswer[]
+}
+
+model Enrollment {
+  id                 String           @id @default(uuid())
+  userId             String
+  user               User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId           String
+  course             Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  assignedBy         String?
+  dueDate            DateTime?
+  isMandatory        Boolean          @default(true)
+  status             EnrollmentStatus @default(NOT_STARTED)
+  overallProgressPct Int              @default(0)
+  lastAccessedAt     DateTime?        // For "last accessed: 2 days ago"
+  completedAt        DateTime?
+  finalScorePct      Int?             // Best quiz score for completed courses
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  lessonProgress     LessonProgress[]
+  quizAttempts       QuizAttempt[]
+  certificates       Certificate[]
+
+  @@unique([userId, courseId]) // Prevent duplicate enrollments
+}
+
+model LessonProgress {
+  id           String     @id @default(uuid())
+  enrollmentId String
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  lessonId     String
+  lesson       Lesson     @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  isCompleted  Boolean    @default(false)
+  completedAt  DateTime?
+
+  @@unique([enrollmentId, lessonId]) // One progress record per lesson per enrollment
+}
+
+model QuizAttempt {
+  id           String       @id @default(uuid())
+  enrollmentId String
+  enrollment   Enrollment   @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  quizId       String
+  quiz         Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  scorePct     Int
+  isPassed     Boolean
+  startedAt    DateTime     @default(now())
+  completedAt  DateTime?
+  answers      QuizAnswer[]
+}
+
+model QuizAnswer {
+  id               String       @id @default(uuid())
+  attemptId        String
+  attempt          QuizAttempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  questionId       String
+  question         QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  selectedOptionId String?
+  selectedOption   QuizOption?  @relation(fields: [selectedOptionId], references: [id])
+  shortAnswerText  String?
+  isCorrect        Boolean      @default(false)
+}
+
+model Certificate {
+  id              String     @id @default(uuid())
+  enrollmentId    String     @unique
+  enrollment      Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  userId          String
+  certificateCode String     @unique
+  issuedAt        DateTime   @default(now())
+  pdfUrl          String?
+}
