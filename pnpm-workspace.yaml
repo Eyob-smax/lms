@@ -1,0 +1,18 @@
+packages:
+  - 'apps/*'
+  - 'libs/*'
+
+autoInstallPeers: true
+allowBuilds:
+  nx: true
+  unrs-resolver: true
+  esbuild: true
+  "@swc/core": true
+  prisma: true
+  "@prisma/client": true
+  "@prisma/engines": true
+  bcrypt: true
+  "@parcel/watcher": true
+  less: true
+  sharp: true
+  "@scarf/scarf": true

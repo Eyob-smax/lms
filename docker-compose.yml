@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  # 1. PostgreSQL Database Service
+  postgres:
+    image: postgres:16-alpine
+    container_name: lms-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: lms_user
+      POSTGRES_PASSWORD: lms_password
+      POSTGRES_DB: lms_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -u lms_user -d lms_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. NestJS Backend API Service
+  backend:
+    build:
+      context: .
+      dockerfile: ./apps/backend/Dockerfile.dev
+    container_name: lms-backend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DATABASE_URL: "postgresql://lms_user:lms_password@postgres:5432/lms_db?schema=public"
+      JWT_SECRET: "super-secret-jwt-key-change-in-production-bpo-lms"
+      JWT_EXPIRATION: "7d"
+      NX_PREFER_NODE_STRIP_TYPES: "false"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # 3. Next.js Frontend UI Service
+  frontend:
+    build:
+      context: .
+      dockerfile: ./apps/frontend/Dockerfile.dev
+    container_name: lms-frontend
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      NEXT_PUBLIC_API_URL: "http://localhost:3000/api"
+      NX_PREFER_NODE_STRIP_TYPES: "false"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
