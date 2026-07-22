@@ -25,6 +25,7 @@ describe('QuizzesService', () => {
     },
     quizAttempt: {
       create: jest.fn(),
+      findUnique: jest.fn(),
     },
   };
 
@@ -117,6 +118,105 @@ describe('QuizzesService', () => {
       };
 
       await expect(service.submitAttempt('quiz-1', dto)).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('getAttemptDetail()', () => {
+    it('should return detailed drill-down breakdown and missed questions analysis', async () => {
+      const mockAttempt = {
+        id: 'att-1',
+        enrollmentId: 'enr-1',
+        quizId: 'quiz-1',
+        scorePct: 50,
+        isPassed: false,
+        startedAt: new Date(Date.now() - 300000),
+        completedAt: new Date(),
+        quiz: {
+          title: 'Compliance Exam',
+          passingScorePct: 80,
+          course: { id: 'c-1', title: 'Data Privacy', courseCode: 'CRS-2024-001' },
+        },
+        enrollment: {
+          userId: 'u-1',
+          user: { name: 'Jane Agent', email: 'jane@bpo.com', department: 'Sales' },
+        },
+        answers: [
+          {
+            questionId: 'q-1',
+            isCorrect: true,
+            selectedOptionId: 'opt-1',
+            selectedOption: { optionText: 'Option 1' },
+            question: {
+              questionText: 'Question 1',
+              questionType: QuestionType.MCQ,
+              explanation: 'Ex 1',
+              points: 1,
+              options: [
+                { id: 'opt-1', optionText: 'Option 1', isCorrect: true },
+                { id: 'opt-2', optionText: 'Option 2', isCorrect: false },
+              ],
+            },
+          },
+          {
+            questionId: 'q-2',
+            isCorrect: false,
+            selectedOptionId: 'opt-3',
+            selectedOption: { optionText: 'Option 3' },
+            question: {
+              questionText: 'Question 2',
+              questionType: QuestionType.MCQ,
+              explanation: 'Ex 2',
+              points: 1,
+              options: [
+                { id: 'opt-3', optionText: 'Option 3', isCorrect: false },
+                { id: 'opt-4', optionText: 'Option 4', isCorrect: true },
+              ],
+            },
+          },
+        ],
+      };
+
+      mockPrismaService.quizAttempt.findUnique.mockResolvedValue(mockAttempt);
+
+      const result = await service.getAttemptDetail('att-1');
+
+      expect(result.attemptId).toBe('att-1');
+      expect(result.scorePct).toBe(50);
+      expect(result.isPassed).toBe(false);
+      expect(result.totalQuestionsCount).toBe(2);
+      expect(result.correctQuestionsCount).toBe(1);
+      expect(result.missedQuestionsCount).toBe(1);
+      expect(result.missedQuestions).toHaveLength(1);
+      expect(result.missedQuestions[0].questionId).toBe('q-2');
+    });
+
+    it('should throw NotFoundException if attempt missing', async () => {
+      mockPrismaService.quizAttempt.findUnique.mockResolvedValue(null);
+      await expect(service.getAttemptDetail('att-missing')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('getEnrollmentAttempts()', () => {
+    it('should return list of attempts for an enrollment', async () => {
+      mockPrismaService.enrollment.findUnique.mockResolvedValue({
+        id: 'enr-1',
+        course: { title: 'Sales 101' },
+        quizAttempts: [
+          {
+            id: 'att-1',
+            scorePct: 90,
+            isPassed: true,
+            startedAt: new Date(),
+            completedAt: new Date(),
+            quiz: { title: 'Final Quiz', passingScorePct: 80, maxAttempts: 3 },
+          },
+        ],
+      });
+
+      const result = await service.getEnrollmentAttempts('enr-1');
+
+      expect(result.totalAttemptsCount).toBe(1);
+      expect(result.attempts[0].scorePct).toBe(90);
     });
   });
 });

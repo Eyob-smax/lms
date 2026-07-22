@@ -90,6 +90,7 @@ export class QuizzesService {
     }> = [];
 
     for (const question of quiz.questions) {
+      totalPointsEarned += 0;
       totalPossiblePoints += question.points;
       const submittedAnswer = dto.answers.find((a) => a.questionId === question.id);
 
@@ -159,6 +160,7 @@ export class QuizzesService {
         data: {
           overallProgressPct: 100,
           status: 'COMPLETED',
+          finalScorePct: scorePct,
           completedAt: new Date(),
         },
       });
@@ -171,6 +173,133 @@ export class QuizzesService {
       isPassed,
       attemptsRemaining: quiz.maxAttempts - (previousAttemptsCount + 1),
       attempt,
+    };
+  }
+
+  async getAttemptDetail(attemptId: string) {
+    const attempt = await this.prisma.quizAttempt.findUnique({
+      where: { id: attemptId },
+      include: {
+        quiz: {
+          include: {
+            course: { select: { id: true, title: true, courseCode: true } },
+          },
+        },
+        enrollment: {
+          include: {
+            user: { select: { id: true, name: true, email: true, department: true } },
+          },
+        },
+        answers: {
+          include: {
+            question: {
+              include: { options: true },
+            },
+            selectedOption: true,
+          },
+        },
+      },
+    });
+
+    if (!attempt) {
+      throw new NotFoundException(`Quiz attempt with ID "${attemptId}" not found`);
+    }
+
+    const timeSpentSeconds = attempt.completedAt && attempt.startedAt
+      ? Math.round((attempt.completedAt.getTime() - attempt.startedAt.getTime()) / 1000)
+      : 0;
+
+    const questionsBreakdown = attempt.answers.map((answer) => {
+      const correctOption = answer.question.options.find((opt) => opt.isCorrect);
+
+      const allOptions = answer.question.options.map((opt) => ({
+        id: opt.id,
+        optionText: opt.optionText,
+        isCorrect: opt.isCorrect,
+        isSelectedByUser: opt.id === answer.selectedOptionId,
+      }));
+
+      return {
+        questionId: answer.questionId,
+        questionText: answer.question.questionText,
+        questionType: answer.question.questionType,
+        explanation: answer.question.explanation || 'No explanation provided for this question.',
+        points: answer.question.points,
+        isCorrect: answer.isCorrect,
+        isMissed: !answer.isCorrect,
+        userAnswer: {
+          selectedOptionId: answer.selectedOptionId,
+          selectedOptionText: answer.selectedOption?.optionText || null,
+          shortAnswerText: answer.shortAnswerText || null,
+        },
+        correctAnswer: {
+          correctOptionId: correctOption?.id || null,
+          correctOptionText: correctOption?.optionText || null,
+        },
+        allOptions,
+      };
+    });
+
+    const missedQuestions = questionsBreakdown.filter((q) => q.isMissed);
+
+    return {
+      attemptId: attempt.id,
+      enrollmentId: attempt.enrollmentId,
+      userId: attempt.enrollment.userId,
+      userName: attempt.enrollment.user.name,
+      userEmail: attempt.enrollment.user.email,
+      department: attempt.enrollment.user.department,
+      quizId: attempt.quizId,
+      quizTitle: attempt.quiz.title,
+      courseId: attempt.quiz.course.id,
+      courseTitle: attempt.quiz.course.title,
+      courseCode: attempt.quiz.course.courseCode,
+      scorePct: attempt.scorePct,
+      passingScorePct: attempt.quiz.passingScorePct,
+      isPassed: attempt.isPassed,
+      startedAt: attempt.startedAt,
+      completedAt: attempt.completedAt,
+      timeSpentSeconds,
+      totalQuestionsCount: questionsBreakdown.length,
+      correctQuestionsCount: questionsBreakdown.length - missedQuestions.length,
+      missedQuestionsCount: missedQuestions.length,
+      questionsBreakdown,
+      missedQuestions,
+    };
+  }
+
+  async getEnrollmentAttempts(enrollmentId: string) {
+    const enrollment = await this.prisma.enrollment.findUnique({
+      where: { id: enrollmentId },
+      include: {
+        course: { select: { title: true } },
+        quizAttempts: {
+          orderBy: { startedAt: 'desc' },
+          include: {
+            quiz: { select: { title: true, passingScorePct: true, maxAttempts: true } },
+          },
+        },
+      },
+    });
+
+    if (!enrollment) {
+      throw new NotFoundException(`Enrollment with ID "${enrollmentId}" not found`);
+    }
+
+    return {
+      enrollmentId,
+      courseTitle: enrollment.course.title,
+      totalAttemptsCount: enrollment.quizAttempts.length,
+      attempts: enrollment.quizAttempts.map((attempt, index) => ({
+        attemptId: attempt.id,
+        attemptNumber: enrollment.quizAttempts.length - index,
+        quizTitle: attempt.quiz.title,
+        scorePct: attempt.scorePct,
+        passingScorePct: attempt.quiz.passingScorePct,
+        isPassed: attempt.isPassed,
+        startedAt: attempt.startedAt,
+        completedAt: attempt.completedAt,
+      })),
     };
   }
 }

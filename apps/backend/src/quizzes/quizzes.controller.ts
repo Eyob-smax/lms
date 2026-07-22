@@ -32,6 +32,20 @@ export class QuizzesController {
     return this.quizzesService.addQuestion(createQuestionDto);
   }
 
+  @ApiOperation({ summary: 'Get quiz attempt detailed drill-down and missed questions analysis' })
+  @ApiResponse({ status: 200, description: 'Detailed attempt breakdown with question-by-question correctness, explanations, and missed questions' })
+  @Get('attempts/:attemptId')
+  async getAttemptDetail(@Param('attemptId') attemptId: string) {
+    return this.quizzesService.getAttemptDetail(attemptId);
+  }
+
+  @ApiOperation({ summary: 'Get all attempt history for an enrollment' })
+  @ApiResponse({ status: 200, description: 'List of past attempt scores, timestamps, and pass/fail statuses' })
+  @Get('enrollments/:enrollmentId/attempts')
+  async getEnrollmentAttempts(@Param('enrollmentId') enrollmentId: string) {
+    return this.quizzesService.getEnrollmentAttempts(enrollmentId);
+  }
+
   @ApiOperation({ summary: 'Get quiz questions and configuration' })
   @ApiResponse({ status: 200, description: 'Quiz details and question list' })
   @Get(':id')
