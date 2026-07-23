@@ -15,10 +15,11 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -u lms_user -d lms_db"]
+      test: ["CMD-SHELL", "pg_isready -U lms_user -d lms_db"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 10s
 
   # 2. Redis Caching & BullMQ Queue Service
   redis:
