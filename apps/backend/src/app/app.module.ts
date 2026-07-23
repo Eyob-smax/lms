@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { CacheModule } from '@nestjs/cache-manager';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
 import { UsersModule } from '../users/users.module';
@@ -10,12 +11,18 @@ import { AiModule } from '../ai/ai.module';
 import { EnrollmentsModule } from '../enrollments/enrollments.module';
 import { AnalyticsModule } from '../analytics/analytics.module';
 import { CertificatesModule } from '../certificates/certificates.module';
+import { JobsModule } from '../jobs/jobs.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    CacheModule.register({
+      isGlobal: true,
+      ttl: 60 * 1000, // 60 seconds TTL cache
+      max: 100, // maximum number of cached items in memory
+    }),
     PrismaModule,
     AuthModule,
     UsersModule,
@@ -26,6 +33,7 @@ import { AppService } from './app.service';
     EnrollmentsModule,
     AnalyticsModule,
     CertificatesModule,
+    JobsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

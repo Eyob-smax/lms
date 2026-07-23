@@ -18,3 +18,4 @@ allowBuilds:
   "@scarf/scarf": true
   '@google/genai': true
   protobufjs: true
+  msgpackr-extract: true

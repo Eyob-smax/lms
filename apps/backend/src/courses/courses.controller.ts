@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, HttpCode, UseInterceptors } from '@nestjs/common';
+import { CacheInterceptor, CacheKey, CacheTTL } from '@nestjs/cache-manager';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { CoursesService } from './courses.service';
 import { CreateCourseDto } from './dto/create-course.dto';
@@ -29,12 +30,16 @@ export class CoursesController {
   }
 
   @Get('catalog')
+  @UseInterceptors(CacheInterceptor)
+  @CacheTTL(30 * 1000) // 30s cache for catalog
   @ApiOperation({ summary: 'Get published courses catalog' })
   findCatalog(@Query() queryCourseDto: QueryCourseDto, @CurrentUser('id') userId: string) {
     return this.coursesService.findCatalog(queryCourseDto, userId);
   }
 
   @Get('categories')
+  @UseInterceptors(CacheInterceptor)
+  @CacheTTL(60 * 1000) // 60s cache for categories
   @ApiOperation({ summary: 'Get distinct course categories with counts' })
   getCategories() {
     return this.coursesService.getCategories();
@@ -61,13 +66,6 @@ export class CoursesController {
     return this.coursesService.findOne(id);
   }
 
-  @Get(':id/statistics')
-  @Roles('ADMIN')
-  @ApiOperation({ summary: 'Get course statistics' })
-  getStatistics(@Param('id') id: string) {
-    return this.coursesService.getStatistics(id);
-  }
-
   @Patch(':id')
   @Roles('ADMIN')
   @ApiOperation({ summary: 'Update a course' })
@@ -80,27 +78,6 @@ export class CoursesController {
   @ApiOperation({ summary: 'Publish a course' })
   publish(@Param('id') id: string) {
     return this.coursesService.publish(id);
-  }
-
-  @Post(':id/unpublish')
-  @Roles('ADMIN')
-  @ApiOperation({ summary: 'Unpublish a course' })
-  unpublish(@Param('id') id: string) {
-    return this.coursesService.unpublish(id);
-  }
-
-  @Post(':id/archive')
-  @Roles('ADMIN')
-  @ApiOperation({ summary: 'Archive a course' })
-  archive(@Param('id') id: string) {
-    return this.coursesService.archive(id);
-  }
-
-  @Post(':id/clone')
-  @Roles('ADMIN')
-  @ApiOperation({ summary: 'Clone a course' })
-  clone(@Param('id') id: string, @CurrentUser('id') userId: string) {
-    return this.coursesService.clone(id, userId);
   }
 
   @Delete(':id')

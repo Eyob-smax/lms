@@ -20,7 +20,22 @@ services:
       timeout: 5s
       retries: 5
 
-  # 2. NestJS Backend API Service
+  # 2. Redis Caching & BullMQ Queue Service
+  redis:
+    image: redis:7-alpine
+    container_name: lms-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 3. NestJS Backend API Service
   backend:
     build:
       context: .
@@ -33,6 +48,8 @@ services:
       NODE_ENV: development
       PORT: 3000
       DATABASE_URL: "postgresql://lms_user:lms_password@postgres:5432/lms_db?schema=public"
+      REDIS_HOST: "redis"
+      REDIS_PORT: 6379
       JWT_SECRET: "super-secret-jwt-key-change-in-production-bpo-lms"
       JWT_EXPIRATION: "7d"
       GEMINI_API_KEY: "${GEMINI_API_KEY:-your_gemini_api_key_here}"
@@ -43,8 +60,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
 
-  # 3. Next.js Frontend UI Service
+  # 4. Next.js Frontend UI Service
   frontend:
     build:
       context: .
@@ -66,3 +85,4 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:

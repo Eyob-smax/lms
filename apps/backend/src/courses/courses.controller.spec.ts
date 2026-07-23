@@ -1,10 +1,17 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { CoursesController } from './courses.controller';
 import { CoursesService } from './courses.service';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 
 describe('CoursesController', () => {
   let controller: CoursesController;
   let service: CoursesService;
+
+  const mockCacheManager = {
+    get: jest.fn(),
+    set: jest.fn(),
+    del: jest.fn(),
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -29,6 +36,7 @@ describe('CoursesController', () => {
             remove: jest.fn(),
           },
         },
+        { provide: CACHE_MANAGER, useValue: mockCacheManager },
       ],
     }).compile();
 
@@ -80,11 +88,6 @@ describe('CoursesController', () => {
     expect(service.findOne).toHaveBeenCalledWith('c1');
   });
 
-  it('getStatistics', () => {
-    controller.getStatistics('c1');
-    expect(service.getStatistics).toHaveBeenCalledWith('c1');
-  });
-
   it('update', () => {
     const dto = { title: 'New' };
     controller.update('c1', dto);
@@ -94,21 +97,6 @@ describe('CoursesController', () => {
   it('publish', () => {
     controller.publish('c1');
     expect(service.publish).toHaveBeenCalledWith('c1');
-  });
-
-  it('unpublish', () => {
-    controller.unpublish('c1');
-    expect(service.unpublish).toHaveBeenCalledWith('c1');
-  });
-
-  it('archive', () => {
-    controller.archive('c1');
-    expect(service.archive).toHaveBeenCalledWith('c1');
-  });
-
-  it('clone', () => {
-    controller.clone('c1', 'u1');
-    expect(service.clone).toHaveBeenCalledWith('c1', 'u1');
   });
 
   it('remove', () => {

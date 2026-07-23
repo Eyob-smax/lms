@@ -1,4 +1,5 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards, UseInterceptors } from '@nestjs/common';
+import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { AnalyticsService } from './analytics.service';
@@ -18,6 +19,8 @@ export class AnalyticsController {
   @ApiOperation({ summary: 'Get Admin Overview Dashboard metrics' })
   @ApiResponse({ status: 200, description: 'Admin platform metrics and trends' })
   @Roles(Role.ADMIN)
+  @UseInterceptors(CacheInterceptor)
+  @CacheTTL(30 * 1000) // 30s cache for admin analytics overview
   @Get('overview')
   getAdminOverview(@Query() query: QueryAnalyticsDto) {
     return this.analyticsService.getAdminOverview(query);
@@ -32,6 +35,8 @@ export class AnalyticsController {
 
   @ApiOperation({ summary: 'Get Agent Leaderboard' })
   @ApiResponse({ status: 200, description: 'Top performing learners ranking' })
+  @UseInterceptors(CacheInterceptor)
+  @CacheTTL(60 * 1000) // 60s cache for leaderboard
   @Get('leaderboard')
   getLeaderboard(@Query('limit') limit?: number) {
     return this.analyticsService.getLeaderboard(limit ? Number(limit) : 10);
