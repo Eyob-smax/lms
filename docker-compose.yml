@@ -60,6 +60,7 @@ services:
     volumes:
       - .:/app
       - /app/node_modules
+    command: sh -c "pnpm exec next dev apps/frontend -p 3001"
     depends_on:
       - backend
 
