@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { EnrollmentStatus } from '@prisma/client';
+import { EnrollmentStatus, Role } from '@prisma/client';
 import { EnrollmentsService } from './enrollments.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -69,6 +69,54 @@ describe('EnrollmentsService', () => {
       mockPrismaService.course.findUnique.mockResolvedValue({ id: 'c-1' });
 
       await expect(service.assignCourse({ courseId: 'c-1' }, 'admin-1')).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('assignCohort()', () => {
+    it('should batch assign course to target department and role cohort', async () => {
+      mockPrismaService.course.findUnique.mockResolvedValue({ id: 'c-1', title: 'SDR Onboarding', courseCode: 'CRS-2024-001' });
+      mockPrismaService.user.findMany.mockResolvedValue([
+        { id: 'u-1', name: 'Agent 1', email: 'a1@bpo.com', department: 'SDR', role: Role.AGENT },
+        { id: 'u-2', name: 'Agent 2', email: 'a2@bpo.com', department: 'SDR', role: Role.AGENT },
+      ]);
+
+      mockPrismaService.enrollment.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: 'enr-2', userId: 'u-2' });
+      mockPrismaService.enrollment.create.mockResolvedValue({ id: 'enr-1', userId: 'u-1', courseId: 'c-1' });
+      mockPrismaService.enrollment.update.mockResolvedValue({ id: 'enr-2', userId: 'u-2', courseId: 'c-1' });
+
+      const dto = {
+        courseId: 'c-1',
+        department: 'SDR',
+        targetRole: Role.AGENT,
+        cohortName: 'Customer Support Batch 3',
+        dueDate: '2026-12-31T23:59:59.000Z',
+        isMandatory: true,
+      };
+
+      const res = await service.assignCohort(dto, 'admin-1');
+
+      expect(res.targetUsersCount).toBe(2);
+      expect(res.assignedCount).toBe(1);
+      expect(res.updatedCount).toBe(1);
+      expect(res.cohortSummary.cohortName).toBe('Customer Support Batch 3');
+      expect(res.cohortSummary.courseCode).toBe('CRS-2024-001');
+    });
+
+    it('should throw NotFoundException if course not found', async () => {
+      mockPrismaService.course.findUnique.mockResolvedValue(null);
+
+      await expect(service.assignCohort({ courseId: 'c-invalid', department: 'SDR' }, 'admin-1')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('should throw NotFoundException if no matching users found for cohort', async () => {
+      mockPrismaService.course.findUnique.mockResolvedValue({ id: 'c-1' });
+      mockPrismaService.user.findMany.mockResolvedValue([]);
+
+      await expect(service.assignCohort({ courseId: 'c-1', department: 'Nonexistent' }, 'admin-1')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 

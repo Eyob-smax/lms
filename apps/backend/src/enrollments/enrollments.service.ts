@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { EnrollmentStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AssignCourseDto } from './dto/assign-course.dto';
+import { AssignCohortDto } from './dto/assign-cohort.dto';
 import { MarkLessonCompleteDto } from './dto/mark-lesson-complete.dto';
 
 @Injectable()
@@ -57,6 +58,98 @@ export class EnrollmentsService {
     return {
       assignedCount: createdEnrollments.length,
       enrollments: createdEnrollments,
+    };
+  }
+
+  async assignCohort(dto: AssignCohortDto, adminUserId: string) {
+    const course = await this.prisma.course.findUnique({ where: { id: dto.courseId } });
+    if (!course) {
+      throw new NotFoundException(`Course with ID "${dto.courseId}" not found`);
+    }
+
+    const whereClause: any = {};
+
+    if (dto.targetRole) {
+      whereClause.role = dto.targetRole;
+    }
+
+    if (dto.department) {
+      whereClause.department = { equals: dto.department, mode: 'insensitive' };
+    }
+
+    if (dto.userIds && dto.userIds.length > 0) {
+      whereClause.id = { in: dto.userIds };
+    }
+
+    const targetUsers = await this.prisma.user.findMany({
+      where: whereClause,
+      select: { id: true, name: true, email: true, department: true, role: true },
+    });
+
+    if (targetUsers.length === 0) {
+      throw new NotFoundException('No matching users found for the specified cohort criteria');
+    }
+
+    const createdEnrollments = [];
+    const updatedEnrollments = [];
+
+    const dueDate = dto.dueDate ? new Date(dto.dueDate) : undefined;
+    const isMandatory = dto.isMandatory !== undefined ? dto.isMandatory : true;
+
+    for (const user of targetUsers) {
+      const existing = await this.prisma.enrollment.findFirst({
+        where: { userId: user.id, courseId: dto.courseId },
+      });
+
+      if (!existing) {
+        const enrollment = await this.prisma.enrollment.create({
+          data: {
+            userId: user.id,
+            courseId: dto.courseId,
+            assignedBy: adminUserId,
+            dueDate,
+            isMandatory,
+            status: EnrollmentStatus.NOT_STARTED,
+            overallProgressPct: 0,
+          },
+          include: {
+            user: { select: { id: true, name: true, email: true, department: true, role: true } },
+            course: { select: { id: true, title: true, category: true, courseCode: true } },
+          },
+        });
+        createdEnrollments.push(enrollment);
+      } else {
+        const updated = await this.prisma.enrollment.update({
+          where: { id: existing.id },
+          data: {
+            dueDate: dueDate || existing.dueDate,
+            isMandatory,
+            assignedBy: adminUserId,
+          },
+          include: {
+            user: { select: { id: true, name: true, email: true, department: true, role: true } },
+            course: { select: { id: true, title: true, category: true, courseCode: true } },
+          },
+        });
+        updatedEnrollments.push(updated);
+      }
+    }
+
+    return {
+      cohortSummary: {
+        courseId: course.id,
+        courseTitle: course.title,
+        courseCode: course.courseCode,
+        cohortName: dto.cohortName || dto.department || (dto.targetRole ? `${dto.targetRole} Cohort` : 'General Cohort'),
+        department: dto.department || 'All Departments',
+        targetRole: dto.targetRole || 'All Roles',
+        dueDate: dueDate ? dueDate.toISOString() : null,
+        isMandatory,
+      },
+      targetUsersCount: targetUsers.length,
+      assignedCount: createdEnrollments.length,
+      updatedCount: updatedEnrollments.length,
+      enrollments: [...createdEnrollments, ...updatedEnrollments],
     };
   }
 

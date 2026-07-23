@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagg
 import { Role } from '@prisma/client';
 import { EnrollmentsService } from './enrollments.service';
 import { AssignCourseDto } from './dto/assign-course.dto';
+import { AssignCohortDto } from './dto/assign-cohort.dto';
 import { MarkLessonCompleteDto } from './dto/mark-lesson-complete.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -22,6 +23,14 @@ export class EnrollmentsController {
   @Post('assign')
   async assignCourse(@Body() dto: AssignCourseDto, @CurrentUser('id') adminUserId: string) {
     return this.enrollmentsService.assignCourse(dto, adminUserId);
+  }
+
+  @ApiOperation({ summary: 'Batch assign courses to entire cohorts, roles, or teams (Admin only)' })
+  @ApiResponse({ status: 201, description: 'Course batch assigned to target cohort / group of agents' })
+  @Roles(Role.ADMIN)
+  @Post('assign-cohort')
+  async assignCohort(@Body() dto: AssignCohortDto, @CurrentUser('id') adminUserId: string) {
+    return this.enrollmentsService.assignCohort(dto, adminUserId);
   }
 
   @ApiOperation({ summary: 'Get current agent assigned courses and completion status' })
