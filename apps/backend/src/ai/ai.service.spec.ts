@@ -40,6 +40,9 @@ describe('AiService', () => {
     service = module.get<AiService>(AiService);
     prisma = module.get<PrismaService>(PrismaService);
 
+    // Disable real network calls in unit tests to test structured AI fallback engine instantly
+    (service as any).ai = null;
+
     jest.clearAllMocks();
   });
 
