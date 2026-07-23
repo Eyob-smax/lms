@@ -9,6 +9,7 @@ import { QuizzesModule } from '../quizzes/quizzes.module';
 import { AiModule } from '../ai/ai.module';
 import { EnrollmentsModule } from '../enrollments/enrollments.module';
 import { AnalyticsModule } from '../analytics/analytics.module';
+import { CertificatesModule } from '../certificates/certificates.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -24,6 +25,7 @@ import { AppService } from './app.service';
     AiModule,
     EnrollmentsModule,
     AnalyticsModule,
+    CertificatesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

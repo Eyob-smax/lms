@@ -37,6 +37,12 @@ enum EnrollmentStatus {
   COMPLETED
 }
 
+enum CertificateStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+}
+
 model User {
   id             String       @id @default(uuid())
   name           String
@@ -244,11 +250,18 @@ model QuizAnswer {
 }
 
 model Certificate {
-  id              String     @id @default(uuid())
-  enrollmentId    String     @unique
-  enrollment      Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  id              String            @id @default(uuid())
+  enrollmentId    String            @unique
+  enrollment      Enrollment        @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
   userId          String
-  certificateCode String     @unique
-  issuedAt        DateTime   @default(now())
+  certificateCode String            @unique
+  status          CertificateStatus @default(APPROVED)
+  requestedAt     DateTime?         @default(now())
+  approvedAt      DateTime?
+  approvedBy      String?
+  rejectionReason String?
+  issuedAt        DateTime          @default(now())
   pdfUrl          String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 }
