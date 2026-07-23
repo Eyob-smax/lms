@@ -26,6 +26,12 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${geist.variable} ${inter.variable}`}>
+      <head>
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+        />
+      </head>
       <body className="bg-background text-on-background font-inter antialiased min-h-screen">
         <ReactQueryProvider>{children}</ReactQueryProvider>
       </body>

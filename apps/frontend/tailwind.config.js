@@ -4,7 +4,10 @@ const { join } = require('path');
 module.exports = {
   darkMode: 'class',
   content: [
-    join(__dirname, '{src,pages,components,app}/**/*.{ts,tsx,html,js,jsx}'),
+    join(__dirname, 'src/**/*.{js,ts,jsx,tsx,html}'),
+    join(__dirname, 'app/**/*.{js,ts,jsx,tsx,html}'),
+    join(__dirname, 'pages/**/*.{js,ts,jsx,tsx,html}'),
+    join(__dirname, 'components/**/*.{js,ts,jsx,tsx,html}'),
   ],
   theme: {
     extend: {
