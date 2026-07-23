@@ -1,0 +1,6 @@
+module = {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+};
