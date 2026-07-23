@@ -5,6 +5,11 @@ WORKDIR /app
 # Install pnpm globally
 RUN npm install -g pnpm@11.9.0
 
+# Configure pnpm fetch timeouts & retries for resilient Docker builds
+RUN pnpm config set fetch-retries 5 && \
+    pnpm config set fetch-retry-maxtimeout 120000 && \
+    pnpm config set fetch-timeout 600000
+
 # Copy root workspace files
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json nx.json ./
 
@@ -12,8 +17,8 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json nx.json 
 COPY apps/backend ./apps/backend
 COPY libs/shared-types ./libs/shared-types
 
-# Install workspace dependencies
-RUN pnpm install --frozen-lockfile
+# Install workspace dependencies with pnpm store cache mount
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile
 
 # Generate Prisma Client
 RUN pnpm exec prisma generate --schema=apps/backend/prisma/schema.prisma
