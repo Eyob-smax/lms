@@ -15,6 +15,7 @@
     "skipDefaultLibCheck": true,
     "strict": false,
     "baseUrl": ".",
+    "ignoreDeprecations": "6.0",
     "paths": {
       "@lms/shared-types": ["libs/shared-types/src/index.ts"]
     }

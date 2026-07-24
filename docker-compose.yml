@@ -58,7 +58,7 @@ services:
     volumes:
       - .:/app
       - /app/node_modules
-    command: sh -c "pnpm exec prisma db push --schema=apps/backend/prisma/schema.prisma && pnpm exec ts-node apps/backend/prisma/seed.ts && pnpm exec nx serve backend"
+    command: sh -c "pnpm exec prisma db push --schema=apps/backend/prisma/schema.prisma && pnpm exec ts-node --transpile-only apps/backend/prisma/seed.ts && TS_NODE_PROJECT=tsconfig.base.json pnpm exec ts-node --transpile-only -r tsconfig-paths/register apps/backend/src/main.ts"
     depends_on:
       postgres:
         condition: service_healthy
