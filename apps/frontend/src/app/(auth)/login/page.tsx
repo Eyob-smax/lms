@@ -49,12 +49,12 @@ export default function LoginPage() {
   };
 
   const handleOAuthLogin = (provider: 'google' | 'github') => {
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://lms.wearecerta.app/api';
     window.location.href = `${backendUrl}/auth/sign-in/${provider}`;
   };
 
   return (
-    <div className="flex flex-col lg:flex-row w-full h-screen overflow-hidden font-inter bg-white">
+    <div className="flex flex-col lg:flex-row w-full min-h-screen lg:h-screen lg:overflow-hidden font-inter bg-white">
       {/* Left Side: Soft Pastel Gradient Banner + Floating Card */}
       <div className="hidden lg:flex lg:w-1/2 relative bg-gradient-to-br from-[#dbe4ff] via-[#e8eeff] to-[#f4f7ff] items-center justify-center p-12 overflow-hidden">
         {/* Soft Background Radial Blurs */}
@@ -82,10 +82,10 @@ export default function LoginPage() {
       </div>
 
       {/* Right Side: Clean Form Panel */}
-      <div className="flex-1 flex flex-col justify-center items-center p-6 sm:p-12 lg:p-16 bg-white relative z-10">
+      <div className="flex-1 flex flex-col justify-center items-center p-4 sm:p-8 lg:p-10 bg-white relative z-10 overflow-y-auto">
         <div className="w-full max-w-md">
           {/* Brand Header */}
-          <div className="flex items-center gap-3 mb-8">
+          <div className="flex items-center gap-3 mb-5">
             <div className="w-10 h-10 rounded-xl bg-[#4d44e3] flex items-center justify-center text-white shadow-md shadow-indigo-200">
               <GraduationCap className="w-5 h-5" />
             </div>
@@ -98,8 +98,8 @@ export default function LoginPage() {
           </div>
 
           {/* Title & Subtitle */}
-          <div className="mb-8">
-            <h1 className="font-geist text-3xl font-bold text-slate-900 mb-1.5 tracking-tight">
+          <div className="mb-5">
+            <h1 className="font-geist text-3xl font-bold text-slate-900 mb-1 tracking-tight">
               Welcome back
             </h1>
             <p className="text-sm text-slate-500">
@@ -109,17 +109,17 @@ export default function LoginPage() {
 
           {/* Error Alert */}
           {error && (
-            <div className="mb-6 p-4 rounded-xl bg-red-50 text-red-700 border border-red-200 flex items-start gap-3 text-sm animate-fadeIn">
+            <div className="mb-5 p-4 rounded-xl bg-red-50 text-red-700 border border-red-200 flex items-start gap-3 text-sm animate-fadeIn">
               <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
               <span>{error}</span>
             </div>
           )}
 
           {/* Login Form */}
-          <form onSubmit={handleLogin} className="space-y-5">
+          <form onSubmit={handleLogin} className="space-y-3.5">
             {/* Email Input */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2" htmlFor="email">
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5" htmlFor="email">
                 Email address
               </label>
               <div className="relative">
@@ -133,14 +133,14 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@company.com"
-                  className="block w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-[#4d44e3] focus:ring-2 focus:ring-[#4d44e3]/20 transition-all text-sm"
+                  className="block w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-[#4d44e3] focus:ring-2 focus:ring-[#4d44e3]/20 transition-all text-sm"
                 />
               </div>
             </div>
 
             {/* Password Input */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2" htmlFor="password">
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5" htmlFor="password">
                 Password
               </label>
               <div className="relative">
@@ -154,7 +154,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="block w-full pl-10 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-[#4d44e3] focus:ring-2 focus:ring-[#4d44e3]/20 transition-all text-sm"
+                  className="block w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-[#4d44e3] focus:ring-2 focus:ring-[#4d44e3]/20 transition-all text-sm"
                 />
                 <button
                   type="button"
@@ -167,7 +167,7 @@ export default function LoginPage() {
             </div>
 
             {/* Remember Me & Forgot Password */}
-            <div className="flex items-center justify-between pt-1">
+            <div className="flex items-center justify-between pt-0.5">
               <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer select-none">
                 <input
                   type="checkbox"
@@ -186,7 +186,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-semibold text-sm text-white bg-[#4d44e3] hover:bg-[#3b32d1] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#4d44e3] transition-all shadow-lg shadow-[#4d44e3]/25 disabled:opacity-50 cursor-pointer"
+              className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-semibold text-sm text-white bg-[#4d44e3] hover:bg-[#3b32d1] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#4d44e3] transition-all shadow-lg shadow-[#4d44e3]/25 disabled:opacity-50 cursor-pointer mt-1"
             >
               {loading ? (
                 <span>Signing in...</span>
@@ -199,7 +199,7 @@ export default function LoginPage() {
             </button>
 
             {/* Social OAuth Divider */}
-            <div className="pt-3">
+            <div className="pt-1.5">
               <div className="relative flex items-center justify-center">
                 <div className="flex-grow border-t border-slate-200" />
                 <span className="flex-shrink mx-4 text-xs font-medium text-slate-400 uppercase tracking-wider">
@@ -209,7 +209,7 @@ export default function LoginPage() {
               </div>
 
               {/* OAuth Buttons */}
-              <div className="grid grid-cols-2 gap-3 mt-4">
+              <div className="grid grid-cols-2 gap-3 mt-2.5">
                 <button
                   type="button"
                   onClick={() => handleOAuthLogin('google')}
@@ -251,7 +251,7 @@ export default function LoginPage() {
           </form>
 
           {/* Footer Link */}
-          <div className="mt-8 text-center">
+          <div className="mt-5 text-center">
             <p className="text-sm text-slate-500">
               Don't have an account?{' '}
               <Link href="/signup" className="font-semibold text-[#4d44e3] hover:text-[#3b32d1] transition-colors">

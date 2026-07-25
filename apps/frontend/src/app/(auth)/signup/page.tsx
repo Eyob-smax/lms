@@ -54,7 +54,7 @@ export default function SignUpPage() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row w-full h-screen overflow-hidden font-inter bg-white">
+    <div className="flex flex-col lg:flex-row w-full min-h-screen lg:h-screen lg:overflow-hidden font-inter bg-white">
       {/* Left Side: Soft Pastel Gradient Banner + Floating Card */}
       <div className="hidden lg:flex lg:w-1/2 relative bg-gradient-to-br from-[#dbe4ff] via-[#e8eeff] to-[#f4f7ff] items-center justify-center p-12 overflow-hidden">
         {/* Soft Background Radial Blurs */}
@@ -82,10 +82,10 @@ export default function SignUpPage() {
       </div>
 
       {/* Right Side: Registration Form */}
-      <div className="flex-1 flex flex-col justify-center items-center p-6 sm:p-12 lg:p-16 bg-white relative z-10">
+      <div className="flex-1 flex flex-col justify-center items-center p-4 sm:p-8 lg:p-10 bg-white relative z-10 overflow-y-auto">
         <div className="w-full max-w-md">
           {/* Header */}
-          <div className="flex items-center gap-3 mb-8">
+          <div className="flex items-center gap-3 mb-5">
             <div className="w-10 h-10 rounded-xl bg-[#4d44e3] flex items-center justify-center text-white shadow-md shadow-indigo-200">
               <GraduationCap className="w-5 h-5" />
             </div>
@@ -97,8 +97,8 @@ export default function SignUpPage() {
             </div>
           </div>
 
-          <div className="mb-6">
-            <h1 className="font-geist text-3xl font-bold text-slate-900 mb-1.5 tracking-tight">
+          <div className="mb-5">
+            <h1 className="font-geist text-3xl font-bold text-slate-900 mb-1 tracking-tight">
               Create an account
             </h1>
             <p className="text-sm text-slate-500">

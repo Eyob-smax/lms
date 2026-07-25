@@ -8,6 +8,7 @@ import {
   Award,
   BookOpen,
   ArrowRight,
+  CheckCircle2,
 } from 'lucide-react';
 import { apiClient } from '../../../lib/api-client';
 

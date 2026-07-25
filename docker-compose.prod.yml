@@ -1,0 +1,93 @@
+version: '3.8'
+
+services:
+  # 1. PostgreSQL Relational Database Service
+  postgres:
+    image: postgres:16-alpine
+    container_name: lms-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-lms_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lms_password}
+      POSTGRES_DB: ${POSTGRES_DB:-lms_db}
+    ports:
+      - "5433:5432"
+    volumes:
+      - lms_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lms_user -d lms_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # 2. Redis Caching & BullMQ Queue Service
+  redis:
+    image: redis:7-alpine
+    container_name: lms-redis
+    restart: always
+    ports:
+      - "6380:6379"
+    volumes:
+      - lms_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 3. NestJS Backend API Service (Production Build)
+  backend:
+    build:
+      context: .
+      dockerfile: ./apps/backend/Dockerfile
+    container_name: lms-backend
+    restart: always
+    ports:
+      - "3050:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-lms_user}:${POSTGRES_PASSWORD:-lms_password}@postgres:5432/${POSTGRES_DB:-lms_db}?schema=public"
+      REDIS_HOST: "redis"
+      REDIS_PORT: 6379
+      JWT_SECRET: "${JWT_SECRET:-super-secret-jwt-key-change-in-production-bpo-lms}"
+      JWT_EXPIRATION: "${JWT_EXPIRATION:-7d}"
+      BETTER_AUTH_SECRET: "${BETTER_AUTH_SECRET:-super-secret-better-auth-key-change-in-production-32chars}"
+      BETTER_AUTH_URL: "https://lms.wearecerta.app"
+      GITHUB_CLIENT_ID: "${GITHUB_CLIENT_ID}"
+      GITHUB_CLIENT_SECRET: "${GITHUB_CLIENT_SECRET}"
+      GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID}"
+      GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET}"
+      GEMINI_API_KEY: "${GEMINI_API_KEY:-your_gemini_api_key_here}"
+    command: >
+      sh -c "npx prisma db push --schema=apps/backend/prisma/schema.prisma &&
+             npx ts-node --transpile-only apps/backend/prisma/seed.ts 2>/dev/null;
+             node dist/apps/backend/main.js"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # 4. Next.js Frontend UI Service (Production Build)
+  frontend:
+    build:
+      context: .
+      dockerfile: ./apps/frontend/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: "https://lms.wearecerta.app/api"
+    container_name: lms-frontend
+    restart: always
+    ports:
+      - "3051:3001"
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      NEXT_PUBLIC_API_URL: "https://lms.wearecerta.app/api"
+    depends_on:
+      - backend
+
+volumes:
+  lms_postgres_data:
+  lms_redis_data:

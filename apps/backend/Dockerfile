@@ -9,7 +9,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json nx.json 
 COPY apps/backend ./apps/backend
 COPY libs/shared-types ./libs/shared-types
 
-RUN pnpm install --frozen-lockfile
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store pnpm install --no-frozen-lockfile
 RUN pnpm exec prisma generate --schema=apps/backend/prisma/schema.prisma
 RUN pnpm exec nx build backend --prod
 

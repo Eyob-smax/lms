@@ -158,7 +158,7 @@ export default function CertificatesPage() {
   };
 
   const handleDownloadPDF = (certId: string, courseTitle: string) => {
-    const baseURL = apiClient.defaults.baseURL || 'http://localhost:3000/api';
+    const baseURL = apiClient.defaults.baseURL || 'https://lms.wearecerta.app/api';
     const token = localStorage.getItem('lms_token');
     const pdfUrl = `${baseURL}/certificates/${certId}/pdf?token=${token}`;
     window.open(pdfUrl, '_blank');

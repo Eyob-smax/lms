@@ -9,7 +9,7 @@ export const auth = betterAuth({
     provider: 'postgresql',
   }),
   secret: process.env.BETTER_AUTH_SECRET || 'super-secret-better-auth-key-change-in-production',
-  baseURL: process.env.BETTER_AUTH_URL || 'http://localhost:3000',
+  baseURL: process.env.BETTER_AUTH_URL || 'https://lms.wearecerta.app',
   basePath: '/api/auth',
   emailAndPassword: {
     enabled: true,
