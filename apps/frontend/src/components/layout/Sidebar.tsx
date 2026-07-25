@@ -11,9 +11,7 @@ import {
   Settings,
   HelpCircle,
   Sparkles,
-  PlusCircle,
   Users,
-  LogOut,
   X,
 } from 'lucide-react';
 
@@ -30,35 +28,33 @@ export default function Sidebar({ userRole = 'AGENT', isMobileOpen = false, onMo
 
   const navItems = isAdmin
     ? [
-        { label: 'Overview', href: '/admin/dashboard', icon: LayoutDashboard },
-        { label: 'All Courses', href: '/admin/courses', icon: BookOpen },
+        { label: 'Executive Analytics', href: '/admin/analytics', icon: BarChart3 },
         { label: 'AI Course Builder', href: '/admin/courses/builder', icon: Sparkles },
-        { label: 'Analytics & Reports', href: '/admin/analytics', icon: BarChart3 },
         { label: 'User Directory', href: '/admin/users', icon: Users },
-        { label: 'Certificates', href: '/admin/certificates', icon: Award },
-        { label: 'Profile', href: '/profile', icon: User },
+        { label: 'Course Catalog', href: '/courses', icon: BookOpen },
+        { label: 'Certificates & Audit', href: '/certificates', icon: Award },
+        { label: 'My Profile', href: '/profile', icon: User },
       ]
     : [
-        { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+        { label: 'Performance Dashboard', href: '/dashboard', icon: LayoutDashboard },
         { label: 'My Courses', href: '/courses', icon: BookOpen },
         { label: 'Certificates', href: '/certificates', icon: Award },
-        { label: 'My Performance', href: '/analytics', icon: BarChart3 },
-        { label: 'Profile', href: '/profile', icon: User },
+        { label: 'Profile Settings', href: '/profile', icon: User },
       ];
 
   const sidebarContent = (
-    <div className="flex flex-col h-full py-lg">
+    <div className="flex flex-col h-full py-6">
       {/* Brand Header */}
-      <div className="px-lg pb-xl border-b border-outline-variant/30 mb-md flex items-center justify-between">
+      <div className="px-6 pb-8 border-b border-slate-200 mb-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-on-primary shadow-md shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-[#4d44e3] flex items-center justify-center text-white shadow-md shrink-0">
             <Sparkles className="w-5 h-5" />
           </div>
           <div className="overflow-hidden">
-            <h1 className="font-geist text-lg font-bold text-primary dark:text-inverse-primary truncate leading-tight">
+            <h1 className="font-geist text-lg font-bold text-[#4d44e3] truncate leading-tight">
               LMS Enterprise
             </h1>
-            <p className="font-inter text-xs text-on-surface-variant truncate">
+            <p className="font-inter text-xs text-slate-500 truncate">
               {isAdmin ? 'Trainer & Admin Panel' : 'BPO Learning Portal'}
             </p>
           </div>
@@ -67,7 +63,7 @@ export default function Sidebar({ userRole = 'AGENT', isMobileOpen = false, onMo
         {onMobileClose && (
           <button
             onClick={onMobileClose}
-            className="md:hidden text-on-surface-variant hover:text-on-surface p-1 rounded-lg"
+            className="md:hidden text-slate-500 hover:text-slate-900 p-1 rounded-lg"
           >
             <X className="w-5 h-5" />
           </button>
@@ -75,7 +71,7 @@ export default function Sidebar({ userRole = 'AGENT', isMobileOpen = false, onMo
       </div>
 
       {/* Navigation Tabs */}
-      <nav className="flex-1 overflow-y-auto px-sm space-y-1">
+      <nav className="flex-1 overflow-y-auto px-4 space-y-1">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
@@ -85,13 +81,13 @@ export default function Sidebar({ userRole = 'AGENT', isMobileOpen = false, onMo
               key={item.href}
               href={item.href}
               onClick={onMobileClose}
-              className={`flex items-center gap-3 px-md py-2.5 rounded-r-lg font-geist text-sm font-semibold transition-all duration-150 ${
+              className={`flex items-center gap-3 px-4 py-2.5 rounded-r-lg font-geist text-sm font-semibold transition-all duration-150 ${
                 isActive
-                  ? 'border-l-4 border-primary text-primary bg-surface-container-low font-bold shadow-sm'
-                  : 'border-l-4 border-transparent text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high'
+                  ? 'border-l-4 border-[#4d44e3] text-[#4d44e3] bg-indigo-50 font-bold shadow-sm'
+                  : 'border-l-4 border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50'
               }`}
             >
-              <Icon className={`w-5 h-5 ${isActive ? 'text-primary' : 'text-on-surface-variant'}`} />
+              <Icon className={`w-5 h-5 ${isActive ? 'text-[#4d44e3]' : 'text-slate-500'}`} />
               <span>{item.label}</span>
             </Link>
           );
@@ -99,20 +95,13 @@ export default function Sidebar({ userRole = 'AGENT', isMobileOpen = false, onMo
       </nav>
 
       {/* Footer / Secondary Actions */}
-      <div className="px-md mt-auto pt-md border-t border-outline-variant/30 space-y-1">
+      <div className="px-6 mt-auto pt-6 border-t border-slate-200 space-y-1">
         <Link
-          href="/settings"
-          className="flex items-center gap-3 px-md py-2 rounded-lg font-geist text-sm text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors"
+          href="/profile"
+          className="flex items-center gap-3 px-4 py-2 rounded-lg font-geist text-sm text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-colors"
         >
           <Settings className="w-4 h-4" />
-          <span>Settings</span>
-        </Link>
-        <Link
-          href="/help"
-          className="flex items-center gap-3 px-md py-2 rounded-lg font-geist text-sm text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors"
-        >
-          <HelpCircle className="w-4 h-4" />
-          <span>Help & Support</span>
+          <span>Account Settings</span>
         </Link>
       </div>
     </div>
@@ -121,21 +110,21 @@ export default function Sidebar({ userRole = 'AGENT', isMobileOpen = false, onMo
   return (
     <>
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex w-sidebar-width h-screen sticky left-0 top-0 bg-surface-container-lowest border-r border-outline-variant flex-col z-30 shrink-0">
+      <aside className="hidden md:flex w-64 h-screen sticky left-0 top-0 bg-white border-r border-slate-200 flex-col z-30 shrink-0 shadow-sm">
         {sidebarContent}
       </aside>
 
       {/* Mobile Drawer Backdrop */}
       {isMobileOpen && (
         <div
-          className="fixed inset-0 bg-on-surface/40 backdrop-blur-sm z-50 md:hidden"
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 md:hidden"
           onClick={onMobileClose}
         />
       )}
 
       {/* Mobile Drawer */}
       <aside
-        className={`fixed top-0 left-0 bottom-0 w-72 bg-surface-container-lowest border-r border-outline-variant z-50 md:hidden transition-transform duration-300 ${
+        className={`fixed top-0 left-0 bottom-0 w-72 bg-white border-r border-slate-200 z-50 md:hidden transition-transform duration-300 ${
           isMobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >

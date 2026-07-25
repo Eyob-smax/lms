@@ -1,0 +1,12 @@
+node_modules
+.next
+.git
+.env
+dist
+coverage
+apps/*/node_modules
+apps/*/.next
+apps/*/dist
+libs/*/node_modules
+libs/*/dist
+*.log

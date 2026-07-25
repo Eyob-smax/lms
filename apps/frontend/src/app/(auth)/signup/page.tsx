@@ -54,7 +54,7 @@ export default function SignUpPage() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row w-full min-h-screen font-inter bg-white">
+    <div className="flex flex-col lg:flex-row w-full h-screen overflow-hidden font-inter bg-white">
       {/* Left Side: Soft Pastel Gradient Banner + Floating Card */}
       <div className="hidden lg:flex lg:w-1/2 relative bg-gradient-to-br from-[#dbe4ff] via-[#e8eeff] to-[#f4f7ff] items-center justify-center p-12 overflow-hidden">
         {/* Soft Background Radial Blurs */}

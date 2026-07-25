@@ -2,23 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Swal from 'sweetalert2';
 import {
   Users,
   UserPlus,
-  Download,
   Search,
-  Filter,
   CheckCircle2,
-  ShieldAlert,
   MoreVertical,
-  ChevronLeft,
-  ChevronRight,
   BookOpen,
-  Calendar,
   X,
-  Mail,
-  Building2,
-  Lock,
   UserCheck,
   UserX,
   Layers,
@@ -53,7 +45,6 @@ export default function AdminUsersPage() {
   const [newUserRole, setNewUserRole] = useState('AGENT');
   const [newUserDepartment, setNewUserDepartment] = useState('SDR');
   const [inviteLoading, setInviteLoading] = useState(false);
-  const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
 
   // Batch Cohort Form State
   const [cohortCourseId, setCohortCourseId] = useState('');
@@ -63,7 +54,6 @@ export default function AdminUsersPage() {
   const [cohortDueDate, setCohortDueDate] = useState('');
   const [cohortIsMandatory, setCohortIsMandatory] = useState(true);
   const [cohortLoading, setCohortLoading] = useState(false);
-  const [cohortSuccess, setCohortSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -110,7 +100,6 @@ export default function AdminUsersPage() {
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     setInviteLoading(true);
-    setInviteSuccess(null);
 
     try {
       await apiClient.post('/users', {
@@ -121,26 +110,87 @@ export default function AdminUsersPage() {
         department: newUserDepartment,
       });
 
-      setInviteSuccess(`User ${newUserName} created successfully!`);
+      Swal.fire({
+        title: 'Success!',
+        text: `User ${newUserName} created successfully!`,
+        icon: 'success',
+        confirmButtonColor: '#4d44e3',
+        customClass: {
+          popup: 'rounded-3xl shadow-xl',
+          confirmButton: 'rounded-xl px-6 py-3 font-semibold'
+        }
+      });
+      
       setNewUserName('');
       setNewUserEmail('');
       setShowInviteModal(false);
       fetchData();
     } catch (err: any) {
       console.error('Failed to create user:', err);
+      Swal.fire({
+        title: 'Error',
+        text: 'Failed to create user. Please check the form and try again.',
+        icon: 'error',
+        confirmButtonColor: '#4d44e3',
+        customClass: {
+          popup: 'rounded-3xl shadow-xl',
+          confirmButton: 'rounded-xl px-6 py-3 font-semibold'
+        }
+      });
     } finally {
       setInviteLoading(false);
     }
   };
 
-  const handleToggleUserStatus = async (userId: string, currentStatus: boolean) => {
-    try {
-      await apiClient.patch(`/users/${userId}/status`, {
-        isActive: !currentStatus,
-      });
-      fetchData();
-    } catch (err) {
-      console.error('Failed to toggle status:', err);
+  const handleToggleUserStatus = async (userId: string, currentStatus: boolean, userName: string) => {
+    const action = currentStatus ? 'deactivate' : 'activate';
+    
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: `Do you really want to ${action} ${userName}?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: currentStatus ? '#ef4444' : '#10b981',
+      cancelButtonColor: '#94a3b8',
+      confirmButtonText: `Yes, ${action} it!`,
+      customClass: {
+        popup: 'rounded-3xl shadow-xl border border-slate-100',
+        confirmButton: 'rounded-xl px-6 py-2.5 font-semibold text-sm',
+        cancelButton: 'rounded-xl px-6 py-2.5 font-semibold text-sm'
+      }
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await apiClient.patch(`/users/${userId}/status`, {
+          isActive: !currentStatus,
+        });
+        
+        Swal.fire({
+          title: 'Success!',
+          text: `User status has been updated.`,
+          icon: 'success',
+          confirmButtonColor: '#4d44e3',
+          customClass: {
+            popup: 'rounded-3xl shadow-xl',
+            confirmButton: 'rounded-xl px-6 py-3 font-semibold text-sm'
+          }
+        });
+        
+        fetchData();
+      } catch (err) {
+        console.error('Failed to toggle status:', err);
+        Swal.fire({
+          title: 'Error',
+          text: 'Failed to update user status.',
+          icon: 'error',
+          confirmButtonColor: '#4d44e3',
+          customClass: {
+            popup: 'rounded-3xl shadow-xl',
+            confirmButton: 'rounded-xl px-6 py-3 font-semibold text-sm'
+          }
+        });
+      }
     }
   };
 
@@ -149,7 +199,6 @@ export default function AdminUsersPage() {
     if (!cohortCourseId) return;
 
     setCohortLoading(true);
-    setCohortSuccess(null);
 
     try {
       const payload: any = {
@@ -167,14 +216,33 @@ export default function AdminUsersPage() {
       }
 
       const res = await apiClient.post('/enrollments/assign-cohort', payload);
-      setCohortSuccess(
-        `Successfully assigned course to ${res.data?.assignedCount || selectedUserIds.length} members!`
-      );
+      
+      Swal.fire({
+        title: 'Success!',
+        text: `Successfully assigned course to ${res.data?.assignedCount || selectedUserIds.length} members!`,
+        icon: 'success',
+        confirmButtonColor: '#4d44e3',
+        customClass: {
+          popup: 'rounded-3xl shadow-xl border border-slate-100',
+          confirmButton: 'rounded-xl px-6 py-3 font-semibold'
+        }
+      });
+      
       setShowCohortModal(false);
       setSelectedUserIds([]);
       fetchData();
     } catch (err) {
       console.error('Batch cohort assignment error:', err);
+      Swal.fire({
+        title: 'Error',
+        text: 'Failed to assign course. Please try again.',
+        icon: 'error',
+        confirmButtonColor: '#4d44e3',
+        customClass: {
+          popup: 'rounded-3xl shadow-xl border border-slate-100',
+          confirmButton: 'rounded-xl px-6 py-3 font-semibold'
+        }
+      });
     } finally {
       setCohortLoading(false);
     }
@@ -216,49 +284,52 @@ export default function AdminUsersPage() {
 
   if (loading) {
     return (
-      <div className="max-w-container-max mx-auto p-lg space-y-md animate-pulse">
-        <div className="h-10 w-64 bg-surface-container-high rounded-lg" />
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-lg">
+      <div className="max-w-[1200px] mx-auto p-8 space-y-6 animate-pulse">
+        <div className="h-12 w-64 bg-slate-200 rounded-lg" />
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           {[1, 2, 3, 4].map((n) => (
-            <div key={n} className="h-28 bg-surface-container-high rounded-xl" />
+            <div key={n} className="h-32 bg-slate-200 rounded-3xl" />
           ))}
         </div>
-        <div className="h-96 w-full bg-surface-container-high rounded-xl" />
+        <div className="h-96 w-full bg-slate-200 rounded-3xl" />
       </div>
     );
   }
 
   return (
-    <div className="max-w-container-max mx-auto w-full space-y-xl pb-2xl relative">
+    <div className="max-w-[1200px] mx-auto w-full space-y-10 pb-20 relative">
+      {/* Background decoration */}
+      <div className="fixed top-0 right-0 w-[600px] h-[600px] bg-indigo-50 rounded-full blur-[120px] -z-10 opacity-60 pointer-events-none"></div>
+
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-lg border-b border-outline-variant/40 pb-md">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="font-geist text-3xl md:text-4xl font-bold text-on-surface tracking-tight">
+          <div className="flex items-center gap-3">
+            <h1 className="font-geist text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">
               User Management
             </h1>
-            <span className="px-2.5 py-0.5 bg-primary text-on-primary font-geist font-bold text-[10px] uppercase tracking-wider rounded-md">
+            <span className="px-3 py-1 bg-indigo-50 text-[#4d44e3] font-geist font-extrabold text-[10px] uppercase tracking-widest rounded-lg border border-indigo-100 shadow-sm">
               Admin Exclusive
             </span>
           </div>
-          <p className="font-inter text-sm text-on-surface-variant mt-1">
+          <p className="font-inter text-sm text-slate-500 mt-2">
             Manage organization members, assign roles, and execute batch cohort course assignments.
           </p>
         </div>
 
         {/* Header Action Buttons */}
-        <div className="flex items-center gap-md">
+        <div className="flex items-center gap-4">
           <button
             onClick={() => setShowCohortModal(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-surface-container-lowest border border-outline-variant rounded-xl font-geist text-xs font-semibold text-on-surface hover:bg-surface-container-high transition-all shadow-sm cursor-pointer"
+            className="flex items-center gap-2 px-5 py-3 bg-white border border-slate-200 rounded-xl font-geist text-sm font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm cursor-pointer"
           >
-            <Layers className="w-4 h-4 text-primary" />
+            <Layers className="w-4 h-4 text-[#4d44e3]" />
             <span>Batch Assign Cohort</span>
           </button>
 
           <button
             onClick={() => setShowInviteModal(true)}
-            className="flex items-center gap-2 px-5 py-2.5 bg-primary text-on-primary rounded-xl font-geist text-xs font-semibold shadow-md hover:bg-on-primary-fixed-variant transition-all cursor-pointer"
+            className="flex items-center gap-2 px-6 py-3 bg-[#4d44e3] text-white rounded-xl font-geist text-sm font-bold shadow-lg hover:shadow-indigo-200 hover:bg-[#3b32d1] transition-all cursor-pointer"
           >
             <UserPlus className="w-4 h-4" />
             <span>Invite Member</span>
@@ -266,93 +337,82 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
-      {/* Notifications */}
-      {inviteSuccess && (
-        <div className="p-md rounded-xl bg-secondary-container text-on-secondary-container border border-secondary/20 flex items-center gap-3 text-xs animate-fadeIn">
-          <CheckCircle2 className="w-5 h-5 text-secondary shrink-0" />
-          <span className="font-geist font-semibold">{inviteSuccess}</span>
-        </div>
-      )}
-
-      {cohortSuccess && (
-        <div className="p-md rounded-xl bg-secondary-container text-on-secondary-container border border-secondary/20 flex items-center gap-3 text-xs animate-fadeIn">
-          <CheckCircle2 className="w-5 h-5 text-secondary shrink-0" />
-          <span className="font-geist font-semibold">{cohortSuccess}</span>
-        </div>
-      )}
-
       {/* 4 Bento Stat Cards Row */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-lg">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {/* Card 1: Total Members */}
-        <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg shadow-sm">
-          <div className="flex justify-between items-start mb-sm">
-            <div className="p-2 bg-primary-fixed text-primary rounded-lg">
-              <Users className="w-5 h-5" />
+        <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-xl shadow-slate-200/40 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-50 rounded-bl-[100px] -z-10 group-hover:scale-110 transition-transform"></div>
+          <div className="flex justify-between items-start mb-4">
+            <div className="p-3 bg-indigo-50 text-[#4d44e3] rounded-2xl">
+              <Users className="w-6 h-6" />
             </div>
-            <span className="text-secondary font-geist text-[11px] font-bold bg-secondary-container/40 px-2 py-0.5 rounded-full">
+            <span className="text-emerald-700 font-geist text-[11px] font-extrabold bg-emerald-50 border border-emerald-100 px-3 py-1 rounded-full">
               +12%
             </span>
           </div>
-          <p className="text-on-surface-variant font-geist text-xs font-semibold">Total Organization Members</p>
-          <h3 className="font-geist text-3xl font-bold text-on-surface mt-1">{usersList.length}</h3>
+          <p className="text-slate-500 font-inter text-xs font-medium">Total Organization Members</p>
+          <h3 className="font-geist text-3xl font-extrabold text-slate-900 mt-1">{usersList.length}</h3>
         </div>
 
         {/* Card 2: Active Accounts */}
-        <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg shadow-sm">
-          <div className="flex justify-between items-start mb-sm">
-            <div className="p-2 bg-secondary-container text-on-secondary-container rounded-lg">
-              <UserCheck className="w-5 h-5 text-secondary" />
+        <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-xl shadow-slate-200/40 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-50 rounded-bl-[100px] -z-10 group-hover:scale-110 transition-transform"></div>
+          <div className="flex justify-between items-start mb-4">
+            <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl">
+              <UserCheck className="w-6 h-6" />
             </div>
-            <span className="text-on-surface-variant font-geist text-[11px] font-bold bg-surface-container-high px-2 py-0.5 rounded-full">
+            <span className="text-slate-500 font-geist text-[11px] font-extrabold bg-slate-50 border border-slate-100 px-3 py-1 rounded-full">
               {Math.round((activeCount / (usersList.length || 1)) * 100)}% Active
             </span>
           </div>
-          <p className="text-on-surface-variant font-geist text-xs font-semibold">Active Licenses</p>
-          <h3 className="font-geist text-3xl font-bold text-on-surface mt-1">{activeCount}</h3>
+          <p className="text-slate-500 font-inter text-xs font-medium">Active Licenses</p>
+          <h3 className="font-geist text-3xl font-extrabold text-slate-900 mt-1">{activeCount}</h3>
         </div>
 
         {/* Card 3: Inactive / Pending */}
-        <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg shadow-sm">
-          <div className="flex justify-between items-start mb-sm">
-            <div className="p-2 bg-tertiary-fixed/40 text-tertiary rounded-lg">
-              <UserX className="w-5 h-5" />
+        <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-xl shadow-slate-200/40 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-rose-50 rounded-bl-[100px] -z-10 group-hover:scale-110 transition-transform"></div>
+          <div className="flex justify-between items-start mb-4">
+            <div className="p-3 bg-rose-50 text-rose-600 rounded-2xl">
+              <UserX className="w-6 h-6" />
             </div>
             {pendingCount > 0 && (
-              <span className="text-error font-geist text-[11px] font-bold bg-error-container px-2 py-0.5 rounded-full">
+              <span className="text-rose-700 font-geist text-[11px] font-extrabold bg-rose-50 border border-rose-100 px-3 py-1 rounded-full">
                 Review Needed
               </span>
             )}
           </div>
-          <p className="text-on-surface-variant font-geist text-xs font-semibold">Inactive Accounts</p>
-          <h3 className="font-geist text-3xl font-bold text-on-surface mt-1">{pendingCount}</h3>
+          <p className="text-slate-500 font-inter text-xs font-medium">Inactive Accounts</p>
+          <h3 className="font-geist text-3xl font-extrabold text-slate-900 mt-1">{pendingCount}</h3>
         </div>
 
         {/* Card 4: Avg Progress */}
-        <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg shadow-sm">
-          <div className="flex justify-between items-start mb-sm">
-            <div className="p-2 bg-surface-container-high text-on-surface-variant rounded-lg">
-              <BookOpen className="w-5 h-5" />
+        <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-xl shadow-slate-200/40 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-slate-50 rounded-bl-[100px] -z-10 group-hover:scale-110 transition-transform"></div>
+          <div className="flex justify-between items-start mb-4">
+            <div className="p-3 bg-slate-50 text-slate-600 rounded-2xl">
+              <BookOpen className="w-6 h-6" />
             </div>
           </div>
-          <p className="text-on-surface-variant font-geist text-xs font-semibold">Avg. Training Progress</p>
-          <h3 className="font-geist text-3xl font-bold text-on-surface mt-1">88%</h3>
+          <p className="text-slate-500 font-inter text-xs font-medium">Avg. Training Progress</p>
+          <h3 className="font-geist text-3xl font-extrabold text-slate-900 mt-1">88%</h3>
         </div>
       </div>
 
       {/* Main Data Table Section */}
-      <section className="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm overflow-hidden">
+      <section className="bg-white border border-slate-100 rounded-3xl shadow-xl shadow-slate-200/40 overflow-hidden">
         {/* Filters Bar */}
-        <div className="p-lg border-b border-outline-variant/40 bg-surface-container-low flex flex-wrap items-center justify-between gap-md">
-          <div className="flex flex-wrap items-center gap-md flex-1">
+        <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-4 flex-1">
             {/* Search Input */}
             <div className="relative w-full md:w-80">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-outline" />
+              <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search by name, email, or department..."
-                className="w-full pl-9 pr-4 py-2 bg-surface-container-lowest border border-outline-variant rounded-lg font-inter text-xs text-on-surface focus:ring-2 focus:ring-primary focus:border-primary"
+                className="w-full pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl font-inter text-sm text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all shadow-sm"
               />
             </div>
 
@@ -360,7 +420,7 @@ export default function AdminUsersPage() {
             <select
               value={selectedRole}
               onChange={(e) => setSelectedRole(e.target.value)}
-              className="bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 font-geist text-xs font-semibold text-on-surface focus:ring-2 focus:ring-primary"
+              className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 font-geist text-sm font-semibold text-slate-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all shadow-sm cursor-pointer"
             >
               <option value="ALL">All Roles</option>
               <option value="ADMIN">Admin / Trainer</option>
@@ -371,7 +431,7 @@ export default function AdminUsersPage() {
             <select
               value={selectedDepartment}
               onChange={(e) => setSelectedDepartment(e.target.value)}
-              className="bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 font-geist text-xs font-semibold text-on-surface focus:ring-2 focus:ring-primary"
+              className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 font-geist text-sm font-semibold text-slate-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all shadow-sm cursor-pointer"
             >
               <option value="ALL">All Departments</option>
               <option value="SDR">SDR (Sales Dev)</option>
@@ -383,7 +443,7 @@ export default function AdminUsersPage() {
             </select>
           </div>
 
-          <div className="font-geist text-xs font-semibold text-on-surface-variant">
+          <div className="font-geist text-sm font-semibold text-slate-500 bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm">
             Showing {filteredUsers.length} members
           </div>
         </div>
@@ -392,23 +452,23 @@ export default function AdminUsersPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-surface-container-low border-b border-outline-variant/40 font-geist text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">
-                <th className="px-lg py-3">
+              <tr className="bg-slate-50/80 border-b border-slate-100 font-geist text-[11px] font-extrabold text-slate-500 uppercase tracking-widest">
+                <th className="px-6 py-4 w-16">
                   <input
                     type="checkbox"
                     checked={selectedUserIds.length > 0 && selectedUserIds.length === filteredUsers.length}
                     onChange={toggleSelectAll}
-                    className="rounded border-outline-variant text-primary focus:ring-primary"
+                    className="w-4 h-4 rounded border-slate-300 text-[#4d44e3] focus:ring-[#4d44e3] cursor-pointer"
                   />
                 </th>
-                <th className="px-lg py-3">Member Details</th>
-                <th className="px-lg py-3">Role</th>
-                <th className="px-lg py-3">Department</th>
-                <th className="px-lg py-3">Status</th>
-                <th className="px-lg py-3 text-right">Actions</th>
+                <th className="px-6 py-4">Member Details</th>
+                <th className="px-6 py-4">Role</th>
+                <th className="px-6 py-4">Department</th>
+                <th className="px-6 py-4">Status</th>
+                <th className="px-6 py-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-outline-variant/30 font-inter text-xs">
+            <tbody className="divide-y divide-slate-100 font-inter text-sm">
               {filteredUsers.map((u) => {
                 const isSelected = selectedUserIds.includes(u.id);
                 const isActive = u.isActive !== false;
@@ -416,62 +476,62 @@ export default function AdminUsersPage() {
                 return (
                   <tr
                     key={u.id}
-                    className={`hover:bg-surface-container-high/40 transition-colors ${
-                      isSelected ? 'bg-primary-fixed/20' : ''
+                    className={`hover:bg-slate-50/50 transition-colors ${
+                      isSelected ? 'bg-indigo-50/30' : ''
                     }`}
                   >
-                    <td className="px-lg py-3.5">
+                    <td className="px-6 py-4">
                       <input
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => toggleSelectUser(u.id)}
-                        className="rounded border-outline-variant text-primary focus:ring-primary"
+                        className="w-4 h-4 rounded border-slate-300 text-[#4d44e3] focus:ring-[#4d44e3] cursor-pointer"
                       />
                     </td>
-                    <td className="px-lg py-3.5">
+                    <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-geist font-bold text-xs shrink-0">
+                        <div className="w-10 h-10 rounded-xl bg-indigo-50 text-[#4d44e3] flex items-center justify-center font-geist font-bold text-sm shrink-0 border border-indigo-100 shadow-sm">
                           {u.name ? u.name.charAt(0).toUpperCase() : 'U'}
                         </div>
                         <div>
-                          <p className="font-geist text-xs font-bold text-on-surface">{u.name}</p>
-                          <p className="font-inter text-[11px] text-on-surface-variant">{u.email}</p>
+                          <p className="font-geist text-sm font-bold text-slate-900">{u.name}</p>
+                          <p className="font-inter text-xs text-slate-500">{u.email}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-lg py-3.5 font-geist font-semibold">
+                    <td className="px-6 py-4 font-geist font-semibold">
                       <span
-                        className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                        className={`px-3 py-1 rounded-md text-[11px] font-extrabold uppercase tracking-widest ${
                           u.role === 'ADMIN'
-                            ? 'bg-primary-fixed text-on-primary-fixed'
-                            : 'bg-surface-container-high text-on-surface-variant'
+                            ? 'bg-indigo-50 text-[#4d44e3] border border-indigo-100'
+                            : 'bg-slate-100 text-slate-600 border border-slate-200'
                         }`}
                       >
                         {u.role === 'ADMIN' ? 'Admin' : 'Agent'}
                       </span>
                     </td>
-                    <td className="px-lg py-3.5 text-on-surface-variant font-medium">
+                    <td className="px-6 py-4 text-slate-600 font-medium">
                       {u.department || 'General'}
                     </td>
-                    <td className="px-lg py-3.5">
+                    <td className="px-6 py-4">
                       <span
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-geist text-[10px] font-bold ${
+                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-geist text-[11px] font-extrabold uppercase tracking-widest ${
                           isActive
-                            ? 'bg-secondary-container/40 text-on-secondary-container'
-                            : 'bg-surface-variant text-on-surface-variant'
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                            : 'bg-rose-50 text-rose-700 border border-rose-100'
                         }`}
                       >
-                        <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-secondary' : 'bg-outline'}`} />
+                        <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-rose-500'}`} />
                         {isActive ? 'Active' : 'Inactive'}
                       </span>
                     </td>
-                    <td className="px-lg py-3.5 text-right">
+                    <td className="px-6 py-4 text-right">
                       <button
-                        onClick={() => handleToggleUserStatus(u.id, isActive)}
-                        className={`px-3 py-1 rounded font-geist text-xs font-semibold transition-colors ${
+                        onClick={() => handleToggleUserStatus(u.id, isActive, u.name)}
+                        className={`px-4 py-2 rounded-lg font-geist text-xs font-bold transition-all shadow-sm ${
                           isActive
-                            ? 'bg-error-container text-on-error-container hover:bg-error/20'
-                            : 'bg-secondary-container text-on-secondary-container hover:bg-secondary/20'
+                            ? 'bg-white border border-slate-200 text-slate-700 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200'
+                            : 'bg-white border border-slate-200 text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200'
                         }`}
                       >
                         {isActive ? 'Deactivate' : 'Activate'}
@@ -487,19 +547,19 @@ export default function AdminUsersPage() {
 
       {/* Floating Multi-Select Bulk Actions Bar (Sticky at Bottom) */}
       {selectedUserIds.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-inverse-surface text-inverse-on-surface px-xl py-3 rounded-2xl shadow-2xl flex items-center gap-lg z-50 animate-fadeIn border border-outline/30">
-          <p className="font-geist text-xs font-bold">
-            <span className="text-primary-fixed">{selectedUserIds.length}</span> members selected
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-6 z-50 animate-in slide-in-from-bottom-8 border border-slate-700">
+          <p className="font-geist text-sm font-bold">
+            <span className="text-indigo-400 font-extrabold">{selectedUserIds.length}</span> members selected
           </p>
-          <div className="h-5 w-[1px] bg-outline-variant/40" />
+          <div className="h-6 w-px bg-slate-700" />
 
-          <div className="flex items-center gap-md">
+          <div className="flex items-center gap-4">
             <button
               onClick={() => {
                 setCohortTargetType('SELECTED');
                 setShowCohortModal(true);
               }}
-              className="flex items-center gap-1.5 font-geist text-xs font-bold text-primary-fixed hover:underline cursor-pointer"
+              className="flex items-center gap-2 font-geist text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded-xl transition-colors cursor-pointer"
             >
               <Layers className="w-4 h-4" /> Batch Assign Course
             </button>
@@ -507,68 +567,68 @@ export default function AdminUsersPage() {
 
           <button
             onClick={() => setSelectedUserIds([])}
-            className="p-1 hover:bg-white/10 rounded-full transition-colors ml-2"
+            className="p-2 hover:bg-slate-800 rounded-full transition-colors ml-2"
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5 text-slate-400 hover:text-white" />
           </button>
         </div>
       )}
 
       {/* Modal 1: Invite Member Modal */}
       {showInviteModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-md">
-          <div className="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-xl w-full max-w-md p-lg space-y-md animate-fadeIn">
-            <div className="flex justify-between items-center border-b border-outline-variant/40 pb-sm">
-              <h3 className="font-geist text-lg font-bold text-on-surface">Add New Organization Member</h3>
-              <button onClick={() => setShowInviteModal(false)} className="text-outline hover:text-on-surface">
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-2xl w-full max-w-md p-8 animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-4 mb-6">
+              <h3 className="font-geist text-xl font-extrabold text-slate-900">Add New Member</h3>
+              <button onClick={() => setShowInviteModal(false)} className="text-slate-400 hover:text-slate-900 transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateUser} className="space-y-md">
-              <div className="space-y-1">
-                <label className="block font-geist text-xs font-semibold text-on-surface-variant">Full Name</label>
+            <form onSubmit={handleCreateUser} className="space-y-5">
+              <div className="space-y-1.5">
+                <label className="block font-geist text-xs font-bold text-slate-700 uppercase tracking-wide">Full Name</label>
                 <input
                   type="text"
                   required
                   value={newUserName}
                   onChange={(e) => setNewUserName(e.target.value)}
                   placeholder="e.g. Sarah Jenkins"
-                  className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg font-inter text-xs text-on-surface px-3 py-2 focus:ring-2 focus:ring-primary"
+                  className="w-full bg-white border border-slate-200 rounded-xl font-inter text-sm text-slate-900 px-4 py-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all shadow-sm"
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="block font-geist text-xs font-semibold text-on-surface-variant">Work Email</label>
+              <div className="space-y-1.5">
+                <label className="block font-geist text-xs font-bold text-slate-700 uppercase tracking-wide">Work Email</label>
                 <input
                   type="email"
                   required
                   value={newUserEmail}
                   onChange={(e) => setNewUserEmail(e.target.value)}
                   placeholder="sarah.j@enterprise.com"
-                  className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg font-inter text-xs text-on-surface px-3 py-2 focus:ring-2 focus:ring-primary"
+                  className="w-full bg-white border border-slate-200 rounded-xl font-inter text-sm text-slate-900 px-4 py-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all shadow-sm"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-md">
-                <div className="space-y-1">
-                  <label className="block font-geist text-xs font-semibold text-on-surface-variant">Role</label>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="block font-geist text-xs font-bold text-slate-700 uppercase tracking-wide">Role</label>
                   <select
                     value={newUserRole}
                     onChange={(e) => setNewUserRole(e.target.value)}
-                    className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg font-geist text-xs font-semibold text-on-surface px-3 py-2"
+                    className="w-full bg-white border border-slate-200 rounded-xl font-geist text-sm font-semibold text-slate-900 px-4 py-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all shadow-sm cursor-pointer"
                   >
                     <option value="AGENT">Frontline Agent</option>
                     <option value="ADMIN">Trainer / Admin</option>
                   </select>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="block font-geist text-xs font-semibold text-on-surface-variant">Department</label>
+                <div className="space-y-1.5">
+                  <label className="block font-geist text-xs font-bold text-slate-700 uppercase tracking-wide">Department</label>
                   <select
                     value={newUserDepartment}
                     onChange={(e) => setNewUserDepartment(e.target.value)}
-                    className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg font-geist text-xs font-semibold text-on-surface px-3 py-2"
+                    className="w-full bg-white border border-slate-200 rounded-xl font-geist text-sm font-semibold text-slate-900 px-4 py-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all shadow-sm cursor-pointer"
                   >
                     <option value="SDR">SDR (Sales Dev)</option>
                     <option value="Sales">Outbound Sales</option>
@@ -579,18 +639,18 @@ export default function AdminUsersPage() {
                 </div>
               </div>
 
-              <div className="pt-sm flex justify-end gap-2">
+              <div className="pt-4 flex justify-end gap-3 mt-2">
                 <button
                   type="button"
                   onClick={() => setShowInviteModal(false)}
-                  className="px-4 py-2 border border-outline-variant rounded-lg font-geist text-xs font-semibold text-on-surface hover:bg-surface-container"
+                  className="px-6 py-3 bg-white border border-slate-200 rounded-xl font-geist text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors shadow-sm"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={inviteLoading}
-                  className="px-5 py-2 bg-primary text-on-primary rounded-lg font-geist text-xs font-semibold hover:bg-on-primary-fixed-variant shadow-sm disabled:opacity-50"
+                  className="px-6 py-3 bg-[#4d44e3] text-white rounded-xl font-geist text-sm font-bold hover:bg-[#3b32d1] transition-colors shadow-lg hover:shadow-indigo-200 disabled:opacity-50"
                 >
                   {inviteLoading ? 'Creating...' : 'Create Account'}
                 </button>
@@ -602,22 +662,22 @@ export default function AdminUsersPage() {
 
       {/* Modal 2: Batch Cohort Course Assignment Modal */}
       {showCohortModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-md">
-          <div className="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-xl w-full max-w-lg p-lg space-y-md animate-fadeIn">
-            <div className="flex justify-between items-center border-b border-outline-variant/40 pb-sm">
-              <h3 className="font-geist text-lg font-bold text-on-surface">Batch Cohort Course Assignment</h3>
-              <button onClick={() => setShowCohortModal(false)} className="text-outline hover:text-on-surface">
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-2xl w-full max-w-lg p-8 animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-4 mb-6">
+              <h3 className="font-geist text-xl font-extrabold text-slate-900">Batch Cohort Assignment</h3>
+              <button onClick={() => setShowCohortModal(false)} className="text-slate-400 hover:text-slate-900 transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleAssignCohort} className="space-y-md">
-              <div className="space-y-1">
-                <label className="block font-geist text-xs font-semibold text-on-surface-variant">Select Course to Assign</label>
+            <form onSubmit={handleAssignCohort} className="space-y-6">
+              <div className="space-y-1.5">
+                <label className="block font-geist text-xs font-bold text-slate-700 uppercase tracking-wide">Select Course</label>
                 <select
                   value={cohortCourseId}
                   onChange={(e) => setCohortCourseId(e.target.value)}
-                  className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg font-geist text-xs font-semibold text-on-surface px-3 py-2"
+                  className="w-full bg-white border border-slate-200 rounded-xl font-geist text-sm font-semibold text-slate-900 px-4 py-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all shadow-sm cursor-pointer"
                 >
                   {coursesList.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -627,16 +687,16 @@ export default function AdminUsersPage() {
                 </select>
               </div>
 
-              <div className="space-y-1">
-                <label className="block font-geist text-xs font-semibold text-on-surface-variant">Assignment Target</label>
-                <div className="grid grid-cols-3 gap-2">
+              <div className="space-y-2">
+                <label className="block font-geist text-xs font-bold text-slate-700 uppercase tracking-wide">Assignment Target</label>
+                <div className="grid grid-cols-3 gap-3">
                   <button
                     type="button"
                     onClick={() => setCohortTargetType('SELECTED')}
-                    className={`py-2 px-3 rounded-lg font-geist text-xs font-bold border ${
+                    className={`py-3 px-3 rounded-xl font-geist text-sm font-bold border transition-all ${
                       cohortTargetType === 'SELECTED'
-                        ? 'bg-primary text-on-primary border-primary'
-                        : 'bg-surface-container-low text-on-surface border-outline-variant'
+                        ? 'bg-indigo-50 text-[#4d44e3] border-indigo-200 shadow-sm'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                     }`}
                   >
                     Selected ({selectedUserIds.length})
@@ -645,10 +705,10 @@ export default function AdminUsersPage() {
                   <button
                     type="button"
                     onClick={() => setCohortTargetType('DEPARTMENT')}
-                    className={`py-2 px-3 rounded-lg font-geist text-xs font-bold border ${
+                    className={`py-3 px-3 rounded-xl font-geist text-sm font-bold border transition-all ${
                       cohortTargetType === 'DEPARTMENT'
-                        ? 'bg-primary text-on-primary border-primary'
-                        : 'bg-surface-container-low text-on-surface border-outline-variant'
+                        ? 'bg-indigo-50 text-[#4d44e3] border-indigo-200 shadow-sm'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                     }`}
                   >
                     By Dept
@@ -657,10 +717,10 @@ export default function AdminUsersPage() {
                   <button
                     type="button"
                     onClick={() => setCohortTargetType('ROLE')}
-                    className={`py-2 px-3 rounded-lg font-geist text-xs font-bold border ${
+                    className={`py-3 px-3 rounded-xl font-geist text-sm font-bold border transition-all ${
                       cohortTargetType === 'ROLE'
-                        ? 'bg-primary text-on-primary border-primary'
-                        : 'bg-surface-container-low text-on-surface border-outline-variant'
+                        ? 'bg-indigo-50 text-[#4d44e3] border-indigo-200 shadow-sm'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                     }`}
                   >
                     By Role
@@ -669,12 +729,12 @@ export default function AdminUsersPage() {
               </div>
 
               {cohortTargetType === 'DEPARTMENT' && (
-                <div className="space-y-1">
-                  <label className="block font-geist text-xs font-semibold text-on-surface-variant">Target Department</label>
+                <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2">
+                  <label className="block font-geist text-xs font-bold text-slate-700 uppercase tracking-wide">Target Department</label>
                   <select
                     value={cohortDepartment}
                     onChange={(e) => setCohortDepartment(e.target.value)}
-                    className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg font-geist text-xs font-semibold text-on-surface px-3 py-2"
+                    className="w-full bg-white border border-slate-200 rounded-xl font-geist text-sm font-semibold text-slate-900 px-4 py-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all shadow-sm cursor-pointer"
                   >
                     <option value="SDR">SDR (Sales Dev)</option>
                     <option value="Sales">Outbound Sales</option>
@@ -684,42 +744,56 @@ export default function AdminUsersPage() {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-md">
-                <div className="space-y-1">
-                  <label className="block font-geist text-xs font-semibold text-on-surface-variant">Due Date</label>
+              {cohortTargetType === 'ROLE' && (
+                <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2">
+                  <label className="block font-geist text-xs font-bold text-slate-700 uppercase tracking-wide">Target Role</label>
+                  <select
+                    value={cohortRole}
+                    onChange={(e) => setCohortRole(e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-xl font-geist text-sm font-semibold text-slate-900 px-4 py-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all shadow-sm cursor-pointer"
+                  >
+                    <option value="AGENT">Frontline Agent</option>
+                    <option value="ADMIN">Admin / Trainer</option>
+                  </select>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="block font-geist text-xs font-bold text-slate-700 uppercase tracking-wide">Due Date</label>
                   <input
                     type="date"
                     value={cohortDueDate}
                     onChange={(e) => setCohortDueDate(e.target.value)}
-                    className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg font-inter text-xs text-on-surface px-3 py-2"
+                    className="w-full bg-white border border-slate-200 rounded-xl font-inter text-sm text-slate-900 px-4 py-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all shadow-sm"
                   />
                 </div>
 
-                <div className="space-y-1 flex flex-col justify-end">
-                  <label className="flex items-center gap-2 cursor-pointer pb-2">
+                <div className="space-y-1.5 flex flex-col justify-center">
+                  <label className="flex items-center gap-3 cursor-pointer mt-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
                     <input
                       type="checkbox"
                       checked={cohortIsMandatory}
                       onChange={(e) => setCohortIsMandatory(e.target.checked)}
-                      className="rounded border-outline-variant text-primary focus:ring-primary"
+                      className="w-4 h-4 rounded border-slate-300 text-[#4d44e3] focus:ring-[#4d44e3]"
                     />
-                    <span className="font-geist text-xs font-bold text-on-surface">Mark as Mandatory</span>
+                    <span className="font-geist text-sm font-bold text-slate-900">Mark as Mandatory</span>
                   </label>
                 </div>
               </div>
 
-              <div className="pt-sm flex justify-end gap-2">
+              <div className="pt-4 flex justify-end gap-3 border-t border-slate-100 mt-2">
                 <button
                   type="button"
                   onClick={() => setShowCohortModal(false)}
-                  className="px-4 py-2 border border-outline-variant rounded-lg font-geist text-xs font-semibold text-on-surface hover:bg-surface-container"
+                  className="px-6 py-3 bg-white border border-slate-200 rounded-xl font-geist text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors shadow-sm"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={cohortLoading}
-                  className="px-5 py-2 bg-primary text-on-primary rounded-lg font-geist text-xs font-semibold hover:bg-on-primary-fixed-variant shadow-sm disabled:opacity-50"
+                  className="px-6 py-3 bg-[#4d44e3] text-white rounded-xl font-geist text-sm font-bold hover:bg-[#3b32d1] transition-colors shadow-lg hover:shadow-indigo-200 disabled:opacity-50"
                 >
                   {cohortLoading ? 'Assigning...' : 'Assign Course'}
                 </button>

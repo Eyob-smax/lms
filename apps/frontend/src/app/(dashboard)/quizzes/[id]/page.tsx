@@ -131,19 +131,24 @@ export default function QuizPlayerPage({ params }: { params: Promise<{ id: strin
 
   if (loading) {
     return (
-      <div className="max-w-[800px] mx-auto p-lg space-y-md animate-pulse">
-        <div className="h-10 w-64 bg-surface-container-high rounded-lg" />
-        <div className="h-96 w-full bg-surface-container-high rounded-xl" />
+      <div className="max-w-[900px] mx-auto p-8 space-y-6 animate-pulse">
+        <div className="h-10 w-64 bg-slate-200 rounded-lg" />
+        <div className="h-96 w-full bg-slate-200 rounded-3xl" />
       </div>
     );
   }
 
   if (!quiz) {
     return (
-      <div className="max-w-md mx-auto my-2xl p-xl bg-surface-container-lowest border border-outline-variant rounded-xl text-center space-y-md">
-        <HelpCircle className="w-12 h-12 text-outline mx-auto" />
-        <h3 className="font-geist text-xl font-bold text-on-surface">Quiz Not Found</h3>
-        <Link href="/courses" className="inline-flex items-center gap-2 bg-primary text-on-primary py-2 px-4 rounded-lg font-geist text-xs font-semibold">
+      <div className="max-w-md mx-auto my-20 p-10 bg-white shadow-xl shadow-slate-200/40 rounded-3xl text-center space-y-6 border border-slate-100">
+        <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto">
+          <HelpCircle className="w-8 h-8 text-slate-400" />
+        </div>
+        <div>
+          <h3 className="font-geist text-2xl font-extrabold text-slate-900 mb-2">Quiz Not Found</h3>
+          <p className="font-inter text-sm text-slate-500">The requested assessment does not exist or has been archived.</p>
+        </div>
+        <Link href="/courses" className="inline-flex items-center justify-center gap-2 bg-[#4d44e3] text-white py-3 px-6 rounded-xl font-semibold text-sm hover:bg-[#3b32d1] transition-all">
           Back to Courses
         </Link>
       </div>
@@ -153,69 +158,76 @@ export default function QuizPlayerPage({ params }: { params: Promise<{ id: strin
   const questions = quiz.questions || [];
 
   return (
-    <div className="max-w-[800px] mx-auto w-full space-y-xl pb-2xl">
+    <div className="max-w-[900px] mx-auto w-full space-y-10 pb-20 relative">
+      {/* Background decoration */}
+      <div className="fixed top-0 right-0 w-[500px] h-[500px] bg-indigo-50 rounded-full blur-[100px] -z-10 opacity-50 pointer-events-none"></div>
+
       {/* Top Header & Breadcrumb */}
-      <div className="flex items-center justify-between border-b border-outline-variant/40 pb-sm">
+      <div className="flex items-center justify-between border-b border-slate-200 pb-6">
         <Link
           href="/courses"
-          className="inline-flex items-center gap-1 text-xs font-geist font-semibold text-on-surface-variant hover:text-primary transition-colors"
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-[#4d44e3] transition-colors"
         >
           <ChevronLeft className="w-4 h-4" /> Back to Courses
         </Link>
 
         {timeLeftSeconds !== null && !attemptResult && (
-          <div className="flex items-center gap-1.5 px-3 py-1 bg-surface-container-low border border-outline-variant/60 rounded-full font-mono text-xs font-bold text-primary">
-            <Clock className="w-4 h-4 text-primary" />
-            <span>Time Remaining: {formatTime(timeLeftSeconds)}</span>
+          <div className="flex items-center gap-2 px-4 py-2 bg-rose-50 border border-rose-100 rounded-full shadow-sm">
+            <Clock className="w-4 h-4 text-rose-500" />
+            <span className="font-mono text-sm font-bold text-rose-600 tracking-wide">{formatTime(timeLeftSeconds)}</span>
           </div>
         )}
       </div>
 
       {/* VIEW A: QUIZ EXECUTION PLAYER */}
       {!attemptResult ? (
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm p-lg md:p-xl space-y-xl">
-          <div className="border-b border-outline-variant/40 pb-md">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="bg-primary-fixed text-on-primary-fixed font-geist text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded">
+        <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/40 p-8 md:p-12 space-y-12 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50/50 rounded-full blur-3xl -z-10"></div>
+          
+          <div className="border-b border-slate-100 pb-8 text-center md:text-left">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+              <span className="inline-flex self-center md:self-auto bg-indigo-50 text-[#4d44e3] font-extrabold text-[10px] uppercase tracking-widest px-3 py-1.5 rounded-lg border border-indigo-100 shadow-sm">
                 Assessment Quiz
               </span>
-              <span className="font-inter text-xs text-on-surface-variant">
-                Passing Threshold: {quiz.passingScorePct}%
+              <span className="font-inter text-sm font-medium text-slate-500">
+                Passing Threshold: <span className="font-bold text-slate-700">{quiz.passingScorePct}%</span>
               </span>
             </div>
 
-            <h1 className="font-geist text-2xl font-bold text-on-surface tracking-tight">
+            <h1 className="font-geist text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight">
               {quiz.title}
             </h1>
             {quiz.description && (
-              <p className="font-inter text-xs text-on-surface-variant mt-1">
+              <p className="font-inter text-base text-slate-500 mt-3 max-w-2xl">
                 {quiz.description}
               </p>
             )}
           </div>
 
           {/* Questions List */}
-          <div className="space-y-xl">
+          <div className="space-y-10">
             {questions.map((q: any, qIdx: number) => {
               const selectedOpt = answers[q.id];
 
               return (
-                <div key={q.id} className="space-y-md p-md bg-surface-container-low/60 rounded-xl border border-outline-variant/40">
-                  <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-geist text-sm font-bold text-on-surface flex items-start gap-2">
-                      <span className="w-6 h-6 rounded-full bg-primary-fixed text-primary flex items-center justify-center font-bold text-xs shrink-0">
+                <div key={q.id} className="space-y-6 p-8 bg-slate-50/50 rounded-2xl border border-slate-100 shadow-sm relative group hover:border-indigo-100 transition-colors">
+                  <div className="absolute left-0 top-8 w-1 h-12 bg-slate-200 rounded-r-md group-hover:bg-indigo-300 transition-colors"></div>
+                  
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pl-4">
+                    <h3 className="font-geist text-lg font-bold text-slate-900 flex items-start gap-4">
+                      <span className="w-8 h-8 rounded-xl bg-white text-[#4d44e3] border border-slate-200 shadow-sm flex items-center justify-center font-extrabold text-sm shrink-0">
                         {qIdx + 1}
                       </span>
-                      <span>{q.questionText}</span>
+                      <span className="pt-1 leading-snug">{q.questionText}</span>
                     </h3>
-                    <span className="font-geist text-[10px] font-bold text-outline uppercase shrink-0">
+                    <span className="font-geist text-[11px] font-extrabold text-slate-400 uppercase tracking-widest shrink-0 sm:pt-1">
                       {q.points || 10} pts
                     </span>
                   </div>
 
                   {/* MCQ & True/False Options */}
                   {(q.questionType === 'MULTIPLE_CHOICE' || q.questionType === 'TRUE_FALSE') && (
-                    <div className="space-y-2 pl-8">
+                    <div className="space-y-3 pl-12">
                       {q.options?.map((optionText: string, oIdx: number) => {
                         const isChecked = selectedOpt === oIdx;
 
@@ -224,20 +236,20 @@ export default function QuizPlayerPage({ params }: { params: Promise<{ id: strin
                             key={oIdx}
                             type="button"
                             onClick={() => handleSelectOption(q.id, oIdx)}
-                            className={`w-full flex items-center gap-3 p-3 rounded-lg text-left font-inter text-xs transition-all cursor-pointer border ${
+                            className={`w-full flex items-center gap-4 p-4 rounded-xl text-left font-inter text-sm transition-all duration-200 cursor-pointer border ${
                               isChecked
-                                ? 'bg-primary-fixed/30 border-primary text-on-surface font-semibold shadow-sm'
-                                : 'bg-surface-container-lowest border-outline-variant/60 text-on-surface hover:bg-surface-container-high'
+                                ? 'bg-indigo-50 border-[#4d44e3] shadow-md ring-1 ring-[#4d44e3]'
+                                : 'bg-white border-slate-200 hover:border-indigo-300 hover:bg-slate-50'
                             }`}
                           >
                             <div
-                              className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                                isChecked ? 'border-primary bg-primary' : 'border-outline'
+                              className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                                isChecked ? 'border-[#4d44e3] bg-[#4d44e3]' : 'border-slate-300'
                               }`}
                             >
-                              {isChecked && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+                              {isChecked && <div className="w-2 h-2 bg-white rounded-full" />}
                             </div>
-                            <span>{optionText}</span>
+                            <span className={isChecked ? 'font-bold text-[#4d44e3]' : 'font-medium text-slate-700'}>{optionText}</span>
                           </button>
                         );
                       })}
@@ -246,13 +258,13 @@ export default function QuizPlayerPage({ params }: { params: Promise<{ id: strin
 
                   {/* Short Answer Input */}
                   {q.questionType === 'SHORT_ANSWER' && (
-                    <div className="pl-8">
+                    <div className="pl-12">
                       <textarea
-                        rows={3}
+                        rows={4}
                         value={selectedOpt || ''}
                         onChange={(e) => handleTextAnswer(q.id, e.target.value)}
-                        placeholder="Type your response..."
-                        className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg font-inter text-xs text-on-surface p-3 focus:ring-2 focus:ring-primary"
+                        placeholder="Type your detailed response here..."
+                        className="w-full bg-white border border-slate-200 rounded-xl font-inter text-sm text-slate-900 p-4 shadow-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all resize-y"
                       />
                     </div>
                   )}
@@ -262,63 +274,65 @@ export default function QuizPlayerPage({ params }: { params: Promise<{ id: strin
           </div>
 
           {/* Submit Button */}
-          <div className="pt-md border-t border-outline-variant/40 flex justify-end">
+          <div className="pt-8 border-t border-slate-100 flex justify-end">
             <button
               onClick={handleSubmitQuiz}
               disabled={submitting}
-              className="flex items-center gap-2 px-6 py-3 bg-primary text-on-primary font-geist font-bold text-xs rounded-xl hover:bg-on-primary-fixed-variant shadow-md transition-all cursor-pointer disabled:opacity-50"
+              className="flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-[#4d44e3] to-[#8079ff] text-white font-geist font-extrabold text-sm rounded-xl hover:shadow-xl hover:shadow-indigo-200 transition-all cursor-pointer disabled:opacity-50"
             >
-              <Award className="w-4 h-4" />
+              <Award className="w-5 h-5" />
               <span>{submitting ? 'Grading Responses...' : 'Submit Assessment'}</span>
             </button>
           </div>
         </div>
       ) : (
         /* VIEW B: GRADED RESULTS & MISSED QUESTIONS DRILL-DOWN ANALYSIS */
-        <div className="space-y-xl animate-fadeIn">
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
           {/* Result Banner Card */}
           <div
-            className={`p-xl rounded-xl border shadow-sm flex flex-col sm:flex-row items-center justify-between gap-md ${
+            className={`p-10 rounded-3xl border shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-8 relative overflow-hidden ${
               attemptResult.passed
-                ? 'bg-secondary-container/30 border-secondary text-on-secondary-container'
-                : 'bg-error-container/30 border-error text-on-error-container'
+                ? 'bg-emerald-50/80 border-emerald-100'
+                : 'bg-rose-50/80 border-rose-100'
             }`}
           >
-            <div className="flex items-center gap-4 text-center sm:text-left">
+            <div className={`absolute top-0 right-0 w-64 h-64 rounded-full blur-3xl opacity-50 pointer-events-none ${attemptResult.passed ? 'bg-emerald-200' : 'bg-rose-200'}`}></div>
+
+            <div className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left relative z-10">
               <div
-                className={`w-14 h-14 rounded-full flex items-center justify-center shrink-0 font-bold ${
+                className={`w-20 h-20 rounded-2xl flex items-center justify-center shrink-0 shadow-lg border ${
                   attemptResult.passed
-                    ? 'bg-secondary-container text-secondary'
-                    : 'bg-error-container text-error'
+                    ? 'bg-gradient-to-br from-emerald-400 to-emerald-600 text-white border-emerald-500'
+                    : 'bg-gradient-to-br from-rose-400 to-rose-600 text-white border-rose-500'
                 }`}
               >
                 {attemptResult.passed ? (
-                  <CheckCircle2 className="w-8 h-8" />
+                  <CheckCircle2 className="w-10 h-10" />
                 ) : (
-                  <XCircle className="w-8 h-8" />
+                  <XCircle className="w-10 h-10" />
                 )}
               </div>
 
               <div>
-                <span className="font-geist text-xs font-bold uppercase tracking-wider">
-                  {attemptResult.passed ? 'Assessment Passed!' : 'Assessment Retake Required'}
+                <span className={`font-geist text-[11px] font-extrabold uppercase tracking-widest px-3 py-1 rounded-full ${attemptResult.passed ? 'bg-emerald-200/50 text-emerald-800' : 'bg-rose-200/50 text-rose-800'}`}>
+                  {attemptResult.passed ? 'Assessment Passed' : 'Retake Required'}
                 </span>
-                <h2 className="font-geist text-3xl font-bold mt-0.5">
+                <h2 className={`font-geist text-4xl font-extrabold mt-3 ${attemptResult.passed ? 'text-emerald-900' : 'text-rose-900'}`}>
                   Final Score: {attemptResult.scorePct}%
                 </h2>
-                <p className="font-inter text-xs mt-1 opacity-90">
+                <p className={`font-inter text-sm mt-2 font-medium ${attemptResult.passed ? 'text-emerald-700' : 'text-rose-700'}`}>
                   Required passing threshold: {quiz.passingScorePct}%
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3 relative z-10 w-full sm:w-auto">
               {attemptResult.passed ? (
                 <Link
                   href="/certificates"
-                  className="flex items-center gap-2 px-5 py-2.5 bg-secondary text-on-secondary font-geist font-bold text-xs rounded-lg hover:bg-secondary-container hover:text-on-secondary-container shadow-md transition-all"
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 bg-emerald-600 text-white font-geist font-extrabold text-sm rounded-xl hover:bg-emerald-700 shadow-xl hover:shadow-emerald-200 transition-all"
                 >
-                  <Award className="w-4 h-4" /> Request Certificate Now
+                  <Award className="w-5 h-5" /> Request Certificate
                 </Link>
               ) : (
                 <button
@@ -327,9 +341,9 @@ export default function QuizPlayerPage({ params }: { params: Promise<{ id: strin
                     setAttemptBreakdown(null);
                     setAnswers({});
                   }}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-error text-on-error font-geist font-bold text-xs rounded-lg hover:opacity-90 shadow-md transition-all cursor-pointer"
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 bg-rose-600 text-white font-geist font-extrabold text-sm rounded-xl hover:bg-rose-700 shadow-xl hover:shadow-rose-200 transition-all cursor-pointer"
                 >
-                  <RotateCcw className="w-4 h-4" /> Retake Quiz
+                  <RotateCcw className="w-5 h-5" /> Retake Quiz
                 </button>
               )}
             </div>
@@ -337,49 +351,53 @@ export default function QuizPlayerPage({ params }: { params: Promise<{ id: strin
 
           {/* Missed Questions Breakdown Analysis */}
           {attemptBreakdown?.questions && (
-            <div className="bg-surface-container-lowest p-lg md:p-xl rounded-xl border border-outline-variant shadow-sm space-y-lg">
-              <div>
-                <h3 className="font-geist text-xl font-bold text-on-surface flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-primary" />
-                  <span>Question Breakdown & Missed Questions Analysis</span>
+            <div className="bg-white p-8 md:p-10 rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/40 space-y-8">
+              <div className="border-b border-slate-100 pb-6">
+                <h3 className="font-geist text-2xl font-extrabold text-slate-900 flex items-center gap-3">
+                  <Sparkles className="w-6 h-6 text-[#4d44e3]" />
+                  <span>Performance Breakdown</span>
                 </h3>
-                <p className="font-inter text-xs text-on-surface-variant mt-1">
+                <p className="font-inter text-sm text-slate-500 mt-2">
                   Review your responses, correct answers, and instructional feedback for missed questions.
                 </p>
               </div>
 
-              <div className="space-y-lg">
+              <div className="space-y-6">
                 {attemptBreakdown.questions.map((item: any, idx: number) => {
                   const isCorrect = item.isCorrect;
 
                   return (
                     <div
                       key={idx}
-                      className={`p-md rounded-xl border space-y-md ${
+                      className={`p-6 md:p-8 rounded-2xl border space-y-6 transition-colors ${
                         isCorrect
-                          ? 'bg-surface-container-low border-outline-variant/40'
-                          : 'bg-error-container/10 border-error/30'
+                          ? 'bg-slate-50/50 border-slate-100 hover:border-emerald-200'
+                          : 'bg-rose-50/30 border-rose-100 hover:border-rose-300'
                       }`}
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2">
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                        <div className="flex items-start gap-3">
                           {isCorrect ? (
-                            <CheckCircle2 className="w-5 h-5 text-secondary shrink-0" />
+                            <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
+                              <CheckCircle2 className="w-5 h-5" />
+                            </div>
                           ) : (
-                            <XCircle className="w-5 h-5 text-error shrink-0" />
+                            <div className="w-8 h-8 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center shrink-0 mt-0.5">
+                              <XCircle className="w-5 h-5" />
+                            </div>
                           )}
-                          <h4 className="font-geist text-sm font-bold text-on-surface">
-                            Question {idx + 1}: {item.questionText}
+                          <h4 className="font-geist text-base font-bold text-slate-900 pt-1 leading-relaxed">
+                            <span className="text-slate-500 mr-2 font-extrabold">Q{idx + 1}.</span> {item.questionText}
                           </h4>
                         </div>
-                        <span className="font-geist text-xs font-bold text-on-surface-variant">
-                          {item.pointsEarned} / {item.maxPoints} pts
+                        <span className="font-geist text-[11px] font-extrabold uppercase tracking-widest shrink-0 pt-2 sm:pt-1 text-slate-400">
+                          <span className={isCorrect ? 'text-emerald-600' : 'text-rose-600'}>{item.pointsEarned}</span> / {item.maxPoints} pts
                         </span>
                       </div>
 
                       {/* Options & Selected comparison */}
                       {item.options && (
-                        <div className="space-y-1.5 pl-7">
+                        <div className="space-y-2.5 pl-11">
                           {item.options.map((optText: string, oIdx: number) => {
                             const isSelected = item.selectedOptionIndex === oIdx;
                             const isRightOption = item.correctOptionIndex === oIdx;
@@ -387,25 +405,27 @@ export default function QuizPlayerPage({ params }: { params: Promise<{ id: strin
                             return (
                               <div
                                 key={oIdx}
-                                className={`p-2.5 rounded-lg text-xs font-inter flex items-center justify-between ${
+                                className={`p-4 rounded-xl text-sm font-inter flex items-center justify-between ${
                                   isRightOption
-                                    ? 'bg-secondary-container/40 font-semibold text-on-secondary-container border border-secondary/30'
+                                    ? 'bg-emerald-50 font-bold text-emerald-900 border border-emerald-200 ring-1 ring-emerald-500/20'
                                     : isSelected
-                                    ? 'bg-error-container/40 font-semibold text-on-error-container border border-error/30'
-                                    : 'bg-surface-container-lowest text-on-surface-variant border border-outline-variant/30'
+                                    ? 'bg-rose-50 font-bold text-rose-900 border border-rose-200 ring-1 ring-rose-500/20'
+                                    : 'bg-white text-slate-600 border border-slate-200'
                                 }`}
                               >
                                 <span>{optText}</span>
-                                {isRightOption && (
-                                  <span className="font-geist text-[10px] font-bold text-secondary uppercase">
-                                    Correct Answer
-                                  </span>
-                                )}
-                                {isSelected && !isRightOption && (
-                                  <span className="font-geist text-[10px] font-bold text-error uppercase">
-                                    Your Choice
-                                  </span>
-                                )}
+                                <div className="flex gap-2">
+                                  {isRightOption && (
+                                    <span className="font-geist text-[10px] font-extrabold text-emerald-600 uppercase tracking-wider bg-emerald-100/50 px-2 py-1 rounded-md">
+                                      Correct
+                                    </span>
+                                  )}
+                                  {isSelected && !isRightOption && (
+                                    <span className="font-geist text-[10px] font-extrabold text-rose-600 uppercase tracking-wider bg-rose-100/50 px-2 py-1 rounded-md">
+                                      Your Choice
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             );
                           })}
@@ -414,12 +434,12 @@ export default function QuizPlayerPage({ params }: { params: Promise<{ id: strin
 
                       {/* Explanation Rationale Box */}
                       {item.explanation && (
-                        <div className="pl-7 pt-1">
-                          <div className="p-3 bg-surface-container-high rounded-lg font-inter text-xs text-on-surface border-l-4 border-primary space-y-0.5">
-                            <span className="font-geist font-bold text-primary block">
-                              Instructional Rationale:
+                        <div className="pl-11 pt-2">
+                          <div className="p-5 bg-indigo-50/50 rounded-xl font-inter text-sm text-slate-700 border border-indigo-100 shadow-sm space-y-2">
+                            <span className="font-geist text-[11px] font-extrabold text-[#4d44e3] uppercase tracking-widest block flex items-center gap-2">
+                              <ShieldCheck className="w-4 h-4" /> Instructional Rationale
                             </span>
-                            <p className="text-on-surface-variant">{item.explanation}</p>
+                            <p className="leading-relaxed">{item.explanation}</p>
                           </div>
                         </div>
                       )}

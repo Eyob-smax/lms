@@ -1,16 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Sidebar from '../../components/layout/Sidebar';
 import Header from '../../components/layout/Header';
+import Sidebar from '../../components/layout/Sidebar';
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [userRole, setUserRole] = useState<'AGENT' | 'ADMIN'>('AGENT');
   const [userData, setUserData] = useState<any>(null);
 
   useEffect(() => {
@@ -20,9 +18,6 @@ export default function DashboardLayout({
         try {
           const parsed = JSON.parse(stored);
           setUserData(parsed);
-          if (parsed.role === 'ADMIN') {
-            setUserRole('ADMIN');
-          }
         } catch {
           // ignore
         }
@@ -31,22 +26,20 @@ export default function DashboardLayout({
   }, []);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-screen overflow-hidden bg-slate-50">
       {/* Sidebar Navigation */}
-      <Sidebar
-        userRole={userRole}
-        isMobileOpen={isMobileOpen}
-        onMobileClose={() => setIsMobileOpen(false)}
-      />
+      <Sidebar userRole={userData?.role} />
+      
+      {/* Main Column */}
+      <div className="flex flex-col flex-1 overflow-hidden">
+        {/* Top Navigation */}
+        <Header user={userData} />
 
-      {/* Main Workspace Area */}
-      <div className="flex-1 flex flex-col h-screen overflow-hidden">
-        <Header
-          user={userData}
-          onMenuToggle={() => setIsMobileOpen(!isMobileOpen)}
-        />
-        <main className="flex-1 overflow-y-auto p-md md:p-lg xl:p-xl">
-          {children}
+        {/* Main Workspace Area */}
+        <main className="flex-1 overflow-y-auto p-6 md:p-8 xl:p-12">
+          <div className="max-w-[1440px] mx-auto w-full h-full">
+            {children}
+          </div>
         </main>
       </div>
     </div>

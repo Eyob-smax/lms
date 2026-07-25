@@ -163,6 +163,20 @@ export class AnalyticsService {
       };
     });
 
+    // 8. Design Mock Data (Avg Completion Time, Satisfaction, Skill Gaps)
+    const averageCompletionTime = "14h 30m";
+    const satisfactionScore = 94.2;
+    const satisfactionTrendPct = 2.4;
+
+    const skillGapAnalysis = [
+      { subject: 'Communication', A: 85, B: 65, fullMark: 100 },
+      { subject: 'Technical', A: 70, B: 90, fullMark: 100 },
+      { subject: 'Leadership', A: 60, B: 55, fullMark: 100 },
+      { subject: 'Product', A: 90, B: 85, fullMark: 100 },
+      { subject: 'Sales', A: 88, B: 70, fullMark: 100 },
+      { subject: 'Compliance', A: 95, B: 98, fullMark: 100 },
+    ];
+
     return {
       overview: {
         totalUsers,
@@ -171,11 +185,15 @@ export class AnalyticsService {
         newCoursesThisWeek,
         completionRatePct,
         completionRateTrendPct,
+        averageCompletionTime,
+        satisfactionScore,
+        satisfactionTrendPct
       },
       learningProgressTimeline,
       departmentPerformance,
       criticalCourses,
       recentActivity,
+      skillGapAnalysis
     };
   }
 
