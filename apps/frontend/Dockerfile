@@ -3,13 +3,13 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-RUN npm install -g pnpm@11.9.0
+RUN npm install -g pnpm@9.15.9
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json nx.json ./
 COPY apps/frontend ./apps/frontend
 COPY libs/shared-types ./libs/shared-types
 
-RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store pnpm install --no-frozen-lockfile
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store pnpm install --no-frozen-lockfile --prefer-offline
 RUN NEXT_CPU_COUNT=1 NODE_OPTIONS="--max-old-space-size=1536" pnpm exec nx build frontend --prod
 
 # Stage 2: Runner
@@ -17,7 +17,7 @@ FROM node:22-alpine AS runner
 
 WORKDIR /app
 
-RUN npm install -g pnpm@11.9.0
+RUN npm install -g pnpm@9.15.9
 
 ENV PORT=3001
 ENV NODE_ENV=production
