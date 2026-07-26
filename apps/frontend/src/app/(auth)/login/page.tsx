@@ -199,7 +199,7 @@ export default function LoginPage() {
             </button>
 
             {/* Social OAuth Divider */}
-            <div className="pt-1.5">
+            {/*<div className="pt-1.5">
               <div className="relative flex items-center justify-center">
                 <div className="flex-grow border-t border-slate-200" />
                 <span className="flex-shrink mx-4 text-xs font-medium text-slate-400 uppercase tracking-wider">
@@ -208,7 +208,6 @@ export default function LoginPage() {
                 <div className="flex-grow border-t border-slate-200" />
               </div>
 
-              {/* OAuth Buttons */}
               <div className="grid grid-cols-2 gap-3 mt-2.5">
                 <button
                   type="button"
@@ -247,18 +246,18 @@ export default function LoginPage() {
                   <span>GitHub</span>
                 </button>
               </div>
-            </div>
+            </div>*/}
           </form>
 
           {/* Footer Link */}
-          <div className="mt-5 text-center">
+          {/* <div className="mt-5 text-center">
             <p className="text-sm text-slate-500">
               Don't have an account?{' '}
               <Link href="/signup" className="font-semibold text-[#4d44e3] hover:text-[#3b32d1] transition-colors">
                 Sign up
               </Link>
             </p>
-          </div>
+          </div> */}
         </div>
       </div>
     </div>

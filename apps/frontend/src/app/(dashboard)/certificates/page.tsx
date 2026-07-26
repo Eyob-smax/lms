@@ -292,7 +292,7 @@ export default function CertificatesPage() {
       </div>
 
       {/* Main View: My Achievements Tab */}
-      {activeTab === 'my-certificates' && (
+      {activeTab === 'my-achievements' && (
         <div className="space-y-12">
           {/* Approved Certificates Grid */}
           <div>

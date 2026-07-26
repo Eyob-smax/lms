@@ -192,9 +192,7 @@ export default function Header({ user, onMenuToggle }: HeaderProps) {
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-slate-200 min-h-[72px] flex items-center px-6 lg:px-8 w-full shadow-sm">
       <div className="flex justify-between items-center w-full">
-        {/* Left: Brand & Nav Tabs */}
-        <div className="flex items-center gap-8">
-          {/* Brand */}
+        {/* <div className="flex items-center gap-8">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-[#4d44e3] flex items-center justify-center text-white shadow-sm shrink-0">
               <span className="font-geist font-bold text-sm">L</span>
@@ -202,7 +200,6 @@ export default function Header({ user, onMenuToggle }: HeaderProps) {
             <span className="font-geist text-lg font-bold text-slate-900">LMS Enterprise</span>
           </div>
 
-          {/* Tabs */}
           <nav className="hidden md:flex items-center gap-1">
             <Link
               href="/dashboard"
@@ -227,7 +224,7 @@ export default function Header({ user, onMenuToggle }: HeaderProps) {
               </Link>
             )}
           </nav>
-        </div>
+        </div> */}
 
         {/* Center: Search */}
         <div className="hidden lg:flex flex-1 max-w-md mx-8">
@@ -256,7 +253,7 @@ export default function Header({ user, onMenuToggle }: HeaderProps) {
                 }`}
               >
                 <ShieldCheck className="w-4 h-4" />
-                <span>{isSimulatedAgent ? 'Exit Learner View' : 'Switch to Learner View'}</span>
+                <span>{isSimulatedAgent ? 'Exit Learner View' : ' Learner View'}</span>
               </button>
               {!isSimulatedAgent && (
                 <Link
@@ -271,8 +268,7 @@ export default function Header({ user, onMenuToggle }: HeaderProps) {
 
           <div className="w-px h-6 bg-slate-200 hidden sm:block"></div>
 
-          {/* Theme Toggle Button */}
-          <button
+          {/* <button
             onClick={handleToggleTheme}
             title={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
             className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 dark:hover:text-white rounded-full transition-colors cursor-pointer"
@@ -282,7 +278,7 @@ export default function Header({ user, onMenuToggle }: HeaderProps) {
             ) : (
               <Sun className="w-5 h-5 text-amber-400" />
             )}
-          </button>
+          </button> */}
 
           {/* Notifications & Help */}
           <div className="relative">
