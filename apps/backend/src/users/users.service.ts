@@ -184,7 +184,7 @@ export class UsersService {
     const [enrollments, quizAttempts, certificates] = await Promise.all([
       this.prisma.enrollment.findMany({
         where: { userId: id },
-        orderBy: { enrolledAt: 'desc' },
+        orderBy: { createdAt: 'desc' },
         include: {
           course: {
             select: {
@@ -200,10 +200,10 @@ export class UsersService {
       }),
       this.prisma.quizAttempt.findMany({
         where: { enrollment: { userId: id } },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { startedAt: 'desc' },
         include: {
           quiz: {
-            select: { id: true, title: true, passingScore: true, courseId: true },
+            select: { id: true, title: true, passingScorePct: true, courseId: true },
           },
           enrollment: {
             select: {
@@ -240,7 +240,7 @@ export class UsersService {
 
     const totalLearningMinutes = enrollments
       .filter((e) => e.status === 'COMPLETED')
-      .reduce((sum, e) => sum + (e.course?.durationMinutes || 0), 0);
+      .reduce((sum, e: any) => sum + (e.course?.durationMinutes || 0), 0);
     const totalLearningHours = +(totalLearningMinutes / 60).toFixed(1);
 
     const completionRate = totalEnrolled > 0 ? Math.round((completedCourses / totalEnrolled) * 100) : 0;
