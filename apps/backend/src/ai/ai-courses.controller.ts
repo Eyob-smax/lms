@@ -71,6 +71,18 @@ export class AiCoursesController {
     };
   }
 
+  @ApiOperation({ summary: 'Update draft course properties, modules, lessons, and quiz' })
+  @ApiResponse({ status: 200, description: 'Draft updated successfully' })
+  @Roles(Role.ADMIN)
+  @Put('draft/:id')
+  async updateDraft(@Param('id') id: string, @Body() body: any) {
+    const { course, quiz } = body || {};
+    const targetCourse = course || body;
+    if (targetCourse) targetCourse.id = id;
+    await this.saveCourseAndQuizEdits(targetCourse, quiz);
+    return { success: true, message: 'Draft saved successfully!' };
+  }
+
   @ApiOperation({ summary: 'Publish draft course and assign to target agents or departments' })
   @ApiResponse({ status: 201, description: 'Published course and created enrollments' })
   @Roles(Role.ADMIN)
@@ -82,58 +94,19 @@ export class AiCoursesController {
       return { success: false, message: 'Invalid course data provided' };
     }
 
-    // 1. Update Course title, description, and status to PUBLISHED
+    // 1. Persist any structural edits made in UI Studio before publishing
+    await this.saveCourseAndQuizEdits(course, quiz);
+
+    // 2. Update Course status to PUBLISHED
     await this.prisma.course.update({
       where: { id: course.id },
       data: {
-        title: course.title,
-        description: course.description,
         status: CourseStatus.PUBLISHED,
         publishedAt: new Date(),
       },
     }).catch((err) => {
-      console.error('Failed updating course during publish:', err);
+      console.error('Failed updating course status during publish:', err);
     });
-
-    // 2. Update Quiz and Questions if modified in the studio
-    if (quiz && quiz.id) {
-      await this.prisma.quiz.update({
-        where: { id: quiz.id },
-        data: {
-          title: quiz.title,
-          passingScorePct: typeof quiz.passingScorePct === 'number' ? quiz.passingScorePct : 80,
-        },
-      }).catch(() => {});
-
-      if (Array.isArray(quiz.questions)) {
-        for (const q of quiz.questions) {
-          if (q && q.id) {
-            await this.prisma.quizQuestion.update({
-              where: { id: q.id },
-              data: {
-                questionText: q.questionText,
-                explanation: q.explanation || undefined,
-              },
-            }).catch(() => {});
-
-            if (Array.isArray(q.options) && q.options.length > 0) {
-              await this.prisma.quizOption.deleteMany({ where: { questionId: q.id } }).catch(() => {});
-              for (let idx = 0; idx < q.options.length; idx++) {
-                const optText = typeof q.options[idx] === 'string' ? q.options[idx] : (q.options[idx]?.optionText || `Option ${idx + 1}`);
-                const isCorrect = typeof q.correctOptionIndex === 'number' ? (idx === q.correctOptionIndex) : (q.options[idx]?.isCorrect || idx === 0);
-                await this.prisma.quizOption.create({
-                  data: {
-                    questionId: q.id,
-                    optionText: optText,
-                    isCorrect,
-                  },
-                }).catch(() => {});
-              }
-            }
-          }
-        }
-      }
-    }
 
     // 3. Determine users to enroll
     let targetUsers: { id: string }[] = [];
@@ -151,7 +124,6 @@ export class AiCoursesController {
         },
         select: { id: true },
       });
-      // Fallback if department search returns none
       if (targetUsers.length === 0) {
         targetUsers = await this.prisma.user.findMany({
           where: { role: Role.AGENT, isActive: true },
@@ -199,4 +171,97 @@ export class AiCoursesController {
       enrolledCount,
     };
   }
+
+  private async saveCourseAndQuizEdits(course: any, quiz: any) {
+    if (course && course.id) {
+      const durationVal = typeof course.durationMinutes === 'number' ? course.durationMinutes : (parseInt(course.durationMinutes || course.estimatedDuration, 10) || undefined);
+      await this.prisma.course.update({
+        where: { id: course.id },
+        data: {
+          title: course.title || undefined,
+          description: course.description || undefined,
+          durationMinutes: durationVal,
+          difficulty: course.difficulty || undefined,
+          category: course.category || undefined,
+          learningObjectives: Array.isArray(course.learningObjectives) ? course.learningObjectives : undefined,
+          prerequisites: Array.isArray(course.prerequisites) ? course.prerequisites : undefined,
+          summary: course.summary || undefined,
+        },
+      }).catch((err) => {
+        console.error('Failed updating course properties during save:', err);
+      });
+
+      if (Array.isArray(course.modules)) {
+        for (const mod of course.modules) {
+          if (mod && mod.id) {
+            await this.prisma.module.update({
+              where: { id: mod.id },
+              data: {
+                title: mod.title || undefined,
+                order: typeof mod.order === 'number' ? mod.order : undefined,
+              },
+            }).catch(() => {});
+
+            if (Array.isArray(mod.lessons)) {
+              for (const les of mod.lessons) {
+                if (les && les.id) {
+                  const lesDuration = typeof les.durationMinutes === 'number' ? les.durationMinutes : (parseInt(les.durationMinutes, 10) || undefined);
+                  await this.prisma.lesson.update({
+                    where: { id: les.id },
+                    data: {
+                      title: les.title || undefined,
+                      description: les.description || undefined,
+                      content: les.content || undefined,
+                      durationMinutes: lesDuration,
+                      order: typeof les.order === 'number' ? les.order : undefined,
+                    },
+                  }).catch(() => {});
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    if (quiz && quiz.id) {
+      await this.prisma.quiz.update({
+        where: { id: quiz.id },
+        data: {
+          title: quiz.title,
+          passingScorePct: typeof quiz.passingScorePct === 'number' ? quiz.passingScorePct : 80,
+        },
+      }).catch(() => {});
+
+      if (Array.isArray(quiz.questions)) {
+        for (const q of quiz.questions) {
+          if (q && q.id) {
+            await this.prisma.quizQuestion.update({
+              where: { id: q.id },
+              data: {
+                questionText: q.questionText,
+                explanation: q.explanation || undefined,
+              },
+            }).catch(() => {});
+
+            if (Array.isArray(q.options) && q.options.length > 0) {
+              await this.prisma.quizOption.deleteMany({ where: { questionId: q.id } }).catch(() => {});
+              for (let idx = 0; idx < q.options.length; idx++) {
+                const optText = typeof q.options[idx] === 'string' ? q.options[idx] : (q.options[idx]?.optionText || `Option ${idx + 1}`);
+                const isCorrect = typeof q.correctOptionIndex === 'number' ? (idx === q.correctOptionIndex) : (q.options[idx]?.isCorrect || idx === 0);
+                await this.prisma.quizOption.create({
+                  data: {
+                    questionId: q.id,
+                    optionText: optText,
+                    isCorrect,
+                  },
+                }).catch(() => {});
+              }
+            }
+          }
+        }
+      }
+    }
+  }
 }
+

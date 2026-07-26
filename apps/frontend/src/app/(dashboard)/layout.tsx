@@ -14,10 +14,15 @@ export default function DashboardLayout({
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('lms_user');
+      const simulatedRole = localStorage.getItem('lms_simulated_role');
       if (stored) {
         try {
           const parsed = JSON.parse(stored);
-          setUserData(parsed);
+          if (simulatedRole === 'AGENT') {
+            setUserData({ ...parsed, role: 'AGENT', realRole: parsed.role });
+          } else {
+            setUserData({ ...parsed, realRole: parsed.role });
+          }
         } catch {
           // ignore
         }

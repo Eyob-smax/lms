@@ -5,11 +5,62 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { QueryUsersDto } from './dto/query-users.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { CreateUserDto } from './dto/create-user.dto';
 import { Role } from '@prisma/client';
+import { EmailService } from '../email/email.service';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly emailService: EmailService,
+  ) {}
+
+  async createUser(dto: CreateUserDto) {
+    const existing = await this.prisma.user.findUnique({
+      where: { email: dto.email.toLowerCase() },
+    });
+    if (existing) {
+      throw new BadRequestException('A user account with this email address already exists.');
+    }
+
+    const tempPassword = dto.password || 'LmsPass2026!' + Math.random().toString(36).substring(2, 6);
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(tempPassword, salt);
+
+    const user = await this.prisma.user.create({
+      data: {
+        email: dto.email.toLowerCase(),
+        name: dto.name,
+        role: dto.role || Role.AGENT,
+        department: dto.department || 'General Operations',
+        passwordHash,
+        isActive: true,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        department: true,
+        isActive: true,
+        createdAt: true,
+      },
+    });
+
+    // Dispatch invitation email
+    try {
+      await this.emailService.sendInvitationEmail(user.email, user.name, user.role, user.department, tempPassword);
+    } catch (err) {
+      console.error('Failed to dispatch invitation email:', err);
+    }
+
+    return {
+      ...user,
+      invited: true,
+      tempPassword, // Return tempPassword for admin confirmation popup if needed
+    };
+  }
 
   async getProfile(userId: string) {
     const user = await this.prisma.user.findUnique({

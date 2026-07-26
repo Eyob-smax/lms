@@ -68,9 +68,10 @@ export class EnrollmentsService {
     }
 
     const whereClause: any = {};
+    const effectiveRole = dto.targetRole || dto.role;
 
-    if (dto.targetRole) {
-      whereClause.role = dto.targetRole;
+    if (effectiveRole) {
+      whereClause.role = effectiveRole;
     }
 
     if (dto.department) {
@@ -140,9 +141,9 @@ export class EnrollmentsService {
         courseId: course.id,
         courseTitle: course.title,
         courseCode: course.courseCode,
-        cohortName: dto.cohortName || dto.department || (dto.targetRole ? `${dto.targetRole} Cohort` : 'General Cohort'),
+        cohortName: dto.cohortName || dto.department || (effectiveRole ? `${effectiveRole} Cohort` : 'General Cohort'),
         department: dto.department || 'All Departments',
-        targetRole: dto.targetRole || 'All Roles',
+        targetRole: effectiveRole || 'All Roles',
         dueDate: dueDate ? dueDate.toISOString() : null,
         isMandatory,
       },

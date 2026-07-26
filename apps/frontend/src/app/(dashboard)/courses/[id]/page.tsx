@@ -174,6 +174,9 @@ export default function CourseReaderPage({ params }: { params: Promise<{ id: str
         </Link>
 
         <div className="flex items-center gap-4">
+          <span className="inline-flex items-center gap-1.5 font-bold text-slate-700 bg-white px-3 py-1.5 rounded-xl border border-slate-200 text-xs shadow-sm">
+            <Clock className="w-3.5 h-3.5 text-[#4d44e3]" /> Total Duration: {course.durationMinutes || 60} mins
+          </span>
           <span className="font-semibold text-slate-400 text-xs tracking-wide">
             VERSION {course.version || 1}.0
           </span>
@@ -398,7 +401,7 @@ export default function CourseReaderPage({ params }: { params: Promise<{ id: str
                              <span className="truncate">{les.title}</span>
                            </div>
                            <span className={`text-[10px] font-bold shrink-0 ${isActive ? 'text-indigo-400' : 'text-slate-400'}`}>
-                             {les.durationMinutes}m
+                             {les.durationMinutes || Math.round((course.durationMinutes || 60) / (mod.lessons?.length || 1))}m
                            </span>
                          </button>
                       );

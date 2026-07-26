@@ -28,8 +28,34 @@ export class DraftCourseDto {
   @Min(15)
   estimatedDurationMinutes?: number = 60;
 
+  @ApiPropertyOptional({ description: 'Number of modules requested', default: 3 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  moduleCount?: number = 3;
+
+  @ApiPropertyOptional({ description: 'Target department', example: 'SDR' })
+  @IsOptional()
+  @IsString()
+  targetDepartment?: string;
+
+  @ApiPropertyOptional({ description: 'Experience level', example: 'Intermediate' })
+  @IsOptional()
+  @IsString()
+  experienceLevel?: string;
+
+  @ApiPropertyOptional({ description: 'Industry context', example: 'Enterprise Software' })
+  @IsOptional()
+  @IsString()
+  industry?: string;
+
+  @ApiPropertyOptional({ description: 'Specific prerequisites for this course', example: ['Basic SaaS sales knowledge'] })
+  @IsOptional()
+  prerequisites?: string[];
+
   @ApiPropertyOptional({ description: 'Whether to generate matching quiz assessment', default: true })
   @IsOptional()
   @IsBoolean()
   includeQuiz?: boolean = true;
 }
+

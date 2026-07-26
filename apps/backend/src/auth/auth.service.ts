@@ -6,12 +6,14 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { EmailService } from '../email/email.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
+    private emailService: EmailService,
   ) {}
 
   async register(registerDto: RegisterDto) {
@@ -107,6 +109,13 @@ export class AuthService {
         expiresAt: new Date(Date.now() + 3600 * 1000),
       },
     });
+
+    // Dispatch password reset email
+    try {
+      await this.emailService.sendPasswordResetEmail(user.email, resetToken);
+    } catch (err) {
+      console.error('Failed to send password reset email:', err);
+    }
 
     return {
       message: 'If an account exists with that email, a password reset link has been dispatched.',

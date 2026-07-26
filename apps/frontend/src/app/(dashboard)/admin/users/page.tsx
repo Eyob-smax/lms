@@ -103,7 +103,7 @@ export default function AdminUsersPage() {
     setInviteLoading(true);
 
     try {
-      await apiClient.post('/users', {
+      const res = await apiClient.post('/users', {
         name: newUserName,
         email: newUserEmail,
         password: newUserPassword,
@@ -112,8 +112,8 @@ export default function AdminUsersPage() {
       });
 
       Swal.fire({
-        title: 'Success!',
-        text: `User ${newUserName} created successfully!`,
+        title: 'Member Invited!',
+        html: `<p>User <strong>${newUserName}</strong> created and invitation email dispatched via LMS Email Service!</p><p class="mt-2 text-xs bg-slate-100 p-2 rounded text-slate-700">Login Email: <strong>${newUserEmail}</strong><br/>Temp Password: <code>${res.data?.tempPassword || newUserPassword}</code></p>`,
         icon: 'success',
         confirmButtonColor: '#4d44e3',
         customClass: {
@@ -214,13 +214,15 @@ export default function AdminUsersPage() {
         payload.department = cohortDepartment;
       } else if (cohortTargetType === 'ROLE') {
         payload.role = cohortRole;
+        payload.targetRole = cohortRole;
       }
 
       const res = await apiClient.post('/enrollments/assign-cohort', payload);
+      const totalAffected = res.data?.assignedCount ?? res.data?.targetUsersCount ?? selectedUserIds.length;
       
       Swal.fire({
         title: 'Success!',
-        text: `Successfully assigned course to ${res.data?.assignedCount || selectedUserIds.length} members!`,
+        text: `Successfully processed course assignment for ${totalAffected} member(s)!`,
         icon: 'success',
         confirmButtonColor: '#4d44e3',
         customClass: {

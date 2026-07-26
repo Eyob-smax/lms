@@ -241,15 +241,15 @@ Return ONLY valid JSON matching this exact structure:
     };
   }
 
-  async validateAndSanitizeCourseSchema(raw: any, fallbackTopic: string, targetRole: string): Promise<any> {
+  async validateAndSanitizeCourseSchema(raw: any, fallbackTopic: string, targetRole: string, moduleCount: number = 3): Promise<any> {
     if (!raw || typeof raw !== 'object') {
       throw new Error('Response is not a valid JSON object');
     }
     if (!raw.title || !raw.description) {
       throw new Error('Missing title or description in schema');
     }
-    if (!Array.isArray(raw.sections) || raw.sections.length === 0) {
-      throw new Error('Sections must be a non-empty array');
+    if (!Array.isArray(raw.sections) || raw.sections.length !== moduleCount) {
+      throw new Error(`Expected exactly ${moduleCount} modules/sections, got ${Array.isArray(raw.sections) ? raw.sections.length : 0}`);
     }
     for (const sec of raw.sections) {
       if (!sec.title || !sec.content) {
@@ -263,7 +263,6 @@ Return ONLY valid JSON matching this exact structure:
       if (!q.question || !Array.isArray(q.options) || q.options.length < 2) {
         throw new Error('Each quiz question must have text and at least 2 options');
       }
-      // Ensure exactly 4 options by padding or trimming if necessary
       while (q.options.length < 4) {
         q.options.push(`Alternative option ${q.options.length + 1}`);
       }
@@ -271,7 +270,6 @@ Return ONLY valid JSON matching this exact structure:
         q.options = q.options.slice(0, 4);
       }
       if (!q.correctAnswer || !q.options.includes(q.correctAnswer)) {
-        // If correctAnswer is not exactly matching an option, default to the first option
         q.correctAnswer = q.options[0];
       }
       if (!q.explanation) {
@@ -300,18 +298,31 @@ Return ONLY valid JSON matching this exact structure:
     };
   }
 
-  async generateStandardizedCourseJSON(topic: string, targetRole: string, durationMinutes: number, difficulty: string): Promise<any> {
+  async generateStandardizedCourseJSON(topic: string, targetRole: string, durationMinutes: number, difficulty: string, moduleCount: number = 3, dto?: any): Promise<any> {
     const maxRetries = 3;
+    const targetDept = dto?.targetDepartment || targetRole;
+    const expLevel = dto?.experienceLevel || difficulty || 'Intermediate';
+    const industryContext = dto?.industry || 'Enterprise BPO Operations';
+    const prereqText = Array.isArray(dto?.prerequisites) && dto.prerequisites.length > 0 ? dto.prerequisites.join(', ') : 'Standard workstation software & employee security onboarding';
+
     if (this.ai) {
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-          this.logger.log(`🤖 Gemini generation attempt ${attempt}/${maxRetries} for topic: "${topic}"`);
-          const prompt = `You are a Senior Staff Instructional Designer building an enterprise BPO training course.
-Generate a structured course in deterministic JSON format for topic: "${topic}" targeting role: "${targetRole}".
+          this.logger.log(`🤖 Gemini generation attempt ${attempt}/${maxRetries} for topic: "${topic}" (requiring exactly ${moduleCount} modules)`);
+          const prompt = `You are a Senior Staff Instructional Designer building an enterprise training course.
+Generate a structured course in deterministic JSON format for topic: "${topic}".
+Target Audience Details:
+- Role: "${targetRole}"
+- Department: "${targetDept}"
+- Experience Level: "${expLevel}"
+- Industry: "${industryContext}"
+- Prerequisites: "${prereqText}"
+
+CRITICAL REQUIREMENT: You MUST generate EXACTLY ${moduleCount} sections/modules in the "sections" array. Do not generate more or less than ${moduleCount}.
 Return ONLY valid JSON matching this exact schema (no markdown fences around the json if possible, or valid JSON inside braces):
 {
-  "title": "string - Professional course title",
-  "description": "string - Detailed overview of the training",
+  "title": "string - Professional course title tailored for ${targetRole} in ${industryContext}",
+  "description": "string - Detailed production-quality overview of the training targeting ${expLevel} professionals in ${targetDept}",
   "estimatedDuration": "${durationMinutes}",
   "difficulty": "${difficulty || 'Intermediate'}",
   "learningObjectives": [
@@ -327,11 +338,8 @@ Return ONLY valid JSON matching this exact schema (no markdown fences around the
     {
       "title": "Module 1: Standard Operating Procedures & Core Rules",
       "content": "## Section Overview\\n\\nWelcome to this structured operational module...\\n\\n### Key Rules\\n1. **Rule 1:** Maintain strict confidentiality.\\n2. **Rule 2:** Document all interactions.\\n\\n\`\`\`text\\nExample CRM Entry Format:\\n[TICKET-ID] | Status: Resolved | Notes: Client verified.\\n\`\`\`\\n\\n| Metric | Target | Frequency |\\n| :--- | :--- | :--- |\\n| CSAT | >= 95% | Monthly |\\n| FCR | >= 85% | Weekly |"
-    },
-    {
-      "title": "Module 2: Advanced Scenario & Objection Handling",
-      "content": "## Handling High-Stakes Interactions\\n\\nWhen dealing with escalations, always follow the 3-step framework...\\n\\n### Call Script Example\\n> **Agent:** 'I completely understand your frustration, and I am taking personal ownership of this ticket.'\\n> **Client:** 'I need this fixed immediately.'\\n> **Agent:** 'Let us resolve this step-by-step right now.'"
     }
+    // ... exactly ${moduleCount} objects in this array!
   ],
   "summary": "string - Executive summary reinforcing key takeaways",
   "quiz": [
@@ -387,8 +395,8 @@ Return ONLY valid JSON matching this exact schema (no markdown fences around the
             const jsonMatch = text.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
               const parsed = JSON.parse(jsonMatch[0]);
-              const validated = await this.validateAndSanitizeCourseSchema(parsed, topic, targetRole);
-              this.logger.log('✅ Gemini JSON schema generated and validated successfully!');
+              const validated = await this.validateAndSanitizeCourseSchema(parsed, topic, targetRole, moduleCount);
+              this.logger.log(`✅ Gemini JSON schema generated with exactly ${moduleCount} modules and validated successfully!`);
               return validated;
             }
           }
@@ -398,32 +406,49 @@ Return ONLY valid JSON matching this exact schema (no markdown fences around the
       }
     }
 
-    this.logger.log('ℹ️ Using Deterministic High-Quality BPO Fallback Schema (Guaranteed Production Quality).');
+    this.logger.log(`ℹ️ Using Deterministic High-Quality Fallback Schema (Guaranteed Production Quality with exactly ${moduleCount} modules).`);
+    
+    // Generate exactly moduleCount fallback sections
+    const fallbackSections = [];
+    const moduleTitles = [
+      "Standard Operating Procedures & Core Rules",
+      "Advanced Scenario & Objection Handling",
+      "Quality Assurance, Compliance & SLA Tracking",
+      "Practical Case Studies & Escalation Mastery",
+      "Workflow Optimization & Software Navigation",
+      "Advanced Client Relationship Management",
+      "Data Privacy, Security & PII Protection",
+      "Crisis De-escalation & Conflict Resolution",
+      "Performance KPIs & Continuous Improvement",
+      "Mastering Multichannel Customer Support",
+      "Advanced Technical Troubleshooting",
+      "Leadership & Peer Mentorship Protocols"
+    ];
+
+    for (let i = 0; i < moduleCount; i++) {
+      const modTitle = moduleTitles[i % moduleTitles.length];
+      fallbackSections.push({
+        title: `Module ${i + 1}: ${modTitle}`,
+        content: `## Module ${i + 1}: ${modTitle}\n\nWelcome to Module ${i + 1} of our structured operational training on **${topic}**, tailored specifically for **${expLevel} ${targetRole}** professionals in **${targetDept}** (${industryContext}).\n\n### Key Objectives & Protocols\n1. **Protocol 1 (Execution Excellence):** Ensure all operational actions align with ${industryContext} benchmarks and standard operating procedures.\n2. **Protocol 2 (Documentation & Audit Trails):** Log all interaction metrics accurately within standard CRM and ticketing systems.\n3. **Protocol 3 (SLA Adherence):** Maintain strict compliance with resolution timelines and escalation thresholds.\n\n### Practical Example & Workflow Template\n\`\`\`text\n[WORKFLOW-LOG] Module ${i + 1} | Status: Verified | Role: ${targetRole} (${targetDept})\nSummary: Applied structured execution framework for ${modTitle}.\nVerification: Completed SLA check and customer validation.\n\`\`\`\n\n### Operational Metrics Benchmarks\n| Metric | Benchmark Target | Review Frequency |\n| :--- | :--- | :--- |\n| **CSAT** (Customer Satisfaction) | >= 95% | Monthly Audit |\n| **FCR** (First Contact Resolution) | >= 85% | Weekly Review |\n| **AHT** (Average Handle Time) | 4m 30s | Daily Tracking |\n\n### Key Takeaways\nAlways adhere to established compliance protocols and ensure clear communication with lead supervisors.`
+      });
+    }
+
     const fallbackObj = {
       title: `${topic}: Professional ${targetRole} Operational Masterclass`,
-      description: `Comprehensive onboarding and operational training module designed specifically for ${targetRole} professionals covering core workflows, objection handling, and compliance best practices.`,
+      description: `Comprehensive production-quality onboarding and operational training module designed specifically for ${expLevel} ${targetRole} professionals in ${targetDept} (${industryContext}), covering core workflows, objection handling, and compliance best practices. Prerequisites: ${prereqText}.`,
       estimatedDuration: String(durationMinutes || 60),
       difficulty: difficulty || 'Intermediate',
       learningObjectives: [
-        `Master core operational protocols and workflow execution for ${topic}`,
-        'Understand strict SLA compliance and data privacy verification rules',
-        'Apply de-escalation and structured resolution frameworks during high-stakes interactions'
+        `Master core operational protocols and workflow execution for ${topic} within ${industryContext}`,
+        `Understand strict SLA compliance and data privacy verification rules for ${targetDept}`,
+        `Apply de-escalation and structured resolution frameworks during high-stakes ${targetRole} interactions`
       ],
-      prerequisites: [
+      prerequisites: Array.isArray(dto?.prerequisites) && dto.prerequisites.length > 0 ? dto.prerequisites : [
         'Basic understanding of BPO workstation software and ticketing platforms',
         'Completion of general enterprise security and employee onboarding'
       ],
-      sections: [
-        {
-          "title": "Module 1: Standard Operating Procedures & Core Rules",
-          "content": `## Section Overview\n\nWelcome to this structured operational training on **${topic}**, designed specifically for **${targetRole}** team members.\n\n### Key Operational Rules\n1. **Rule 1 (Identity Verification):** Maintain strict confidentiality by authenticating client security credentials before sharing account details.\n2. **Rule 2 (Real-time Logging):** Document all interactions immediately in standard CRM/ticketing software.\n3. **Rule 3 (SLA Compliance):** Adhere to the 15-minute response threshold for high-priority inbound inquiries.\n\n### Example CRM Documentation Template\n\`\`\`text\n[TICKET-ID] #88412 | Status: In Progress | Agent: ${targetRole} Specialist\nSummary: Client requested permission update for ${topic}.\nAction Taken: Verified security PIN; applied standard workflow update.\n\`\`\`\n\n### Operational Metrics Table\n| KPI Metric | Benchmark Target | Review Frequency |\n| :--- | :--- | :--- |\n| **CSAT** (Customer Satisfaction) | >= 95% | Monthly Audit |\n| **FCR** (First Contact Resolution) | >= 85% | Weekly Review |\n| **AHT** (Average Handle Time) | 4m 30s | Daily Tracking |`
-        },
-        {
-          "title": "Module 2: Advanced Scenario & Objection Handling",
-          "content": `## Handling High-Stakes Interactions\n\nWhen navigating challenging customer objections or technical roadblocks related to **${topic}**, agents must execute the 3-Step Resolution Framework:\n\n* **Acknowledge:** Validate the customer's perspective without admitting system fault.\n* **Clarify:** Ask targeted, closed-ended questions to isolate the root cause.\n* **Resolve:** Present a definitive, policy-compliant solution or initiate immediate warm transfer.\n\n### Recommended Communication Script\n> **Agent:** "Thank you for contacting enterprise support today. I completely understand how critical this issue is for your operations, and I am taking personal ownership of this ticket."\n> **Client:** "We need this resolved right now; our team is blocked!"\n> **Agent:** "I have already pulled up your diagnostic logs. Let us step through the verification protocol together so I can apply the fix immediately."\n\n### Summary & Compliance Note\nAlways double check data privacy standards before closing interaction tickets.`
-        }
-      ],
-      summary: `In summary, achieving excellence in ${targetRole} roles requires consistent execution of Standard Operating Procedures, rigorous CRM documentation, and proactive objection handling. Always prioritize customer security and SLA targets across every interaction.`,
+      sections: fallbackSections,
+      summary: `In summary, achieving excellence in ${targetRole} roles within ${targetDept} requires consistent execution of Standard Operating Procedures, rigorous CRM documentation, and proactive objection handling. Always prioritize customer security and SLA targets across every interaction.`,
       quiz: [
         {
           "id": "q1",
@@ -467,28 +492,38 @@ Return ONLY valid JSON matching this exact schema (no markdown fences around the
       ]
     };
 
-    return this.validateAndSanitizeCourseSchema(fallbackObj, topic, targetRole);
+    return this.validateAndSanitizeCourseSchema(fallbackObj, topic, targetRole, moduleCount);
   }
 
-  async draftCourse(dto: DraftCourseDto, userId: string) {
-    const durationMinutes = dto.estimatedDurationMinutes || 60;
-    const difficulty = dto.difficulty || 'Intermediate';
 
-    // 1. Generate Standardized Deterministic Course Schema
-    const schema = await this.generateStandardizedCourseJSON(dto.topic, dto.targetRole, durationMinutes, difficulty);
+  async draftCourse(dto: DraftCourseDto, userId: string) {
+    const durationMinutes = typeof dto.estimatedDurationMinutes === 'number' ? dto.estimatedDurationMinutes : (parseInt(dto.estimatedDurationMinutes as any, 10) || 60);
+    const difficulty = dto.difficulty || 'Intermediate';
+    const moduleCount = typeof dto.moduleCount === 'number' ? dto.moduleCount : (parseInt(dto.moduleCount as any, 10) || 3);
+
+    // 1. Generate Standardized Deterministic Course Schema with exact moduleCount
+    const schema = await this.generateStandardizedCourseJSON(dto.topic, dto.targetRole, durationMinutes, difficulty, moduleCount, dto);
 
     const year = new Date().getFullYear();
     const count = await this.prisma.course.count();
     const courseCode = `CRS-${year}-${String(count + 1).padStart(3, '0')}`;
 
-    // 2. Create Course in DRAFT state with new schema persistence fields
+    const tags = [dto.targetRole, 'AI-Generated', 'Draft'];
+    if (dto.targetDepartment && !tags.includes(dto.targetDepartment)) {
+      tags.push(dto.targetDepartment);
+    }
+    if (dto.industry && !tags.includes(dto.industry)) {
+      tags.push(dto.industry);
+    }
+
+    // 2. Create Course in DRAFT state with single source of truth integer durationMinutes
     const createdCourse = await this.prisma.course.create({
       data: {
         title: schema.title,
         description: schema.description,
-        category: 'Sales & Support',
-        difficulty: schema.difficulty,
-        durationMinutes: parseInt(schema.estimatedDuration, 10) || 60,
+        category: dto.targetDepartment || 'Sales & Support',
+        difficulty: schema.difficulty || difficulty,
+        durationMinutes: durationMinutes,
         courseCode,
         status: 'DRAFT',
         version: 1,
@@ -496,35 +531,53 @@ Return ONLY valid JSON matching this exact schema (no markdown fences around the
         prerequisites: schema.prerequisites || [],
         summary: schema.summary || '',
         createdBy: { connect: { id: userId } },
-        tags: [dto.targetRole, 'AI-Generated', 'Draft'],
+        tags,
       },
     });
 
-    // 3. Create Module and Lessons from Schema Sections
-    const createdModule = await this.prisma.module.create({
-      data: {
-        courseId: createdCourse.id,
-        title: `Core Curriculum: ${schema.title}`,
-        order: 1,
-      },
-    });
-
+    // 3. Create individual Module and Lesson records from Schema Sections (1 Module per section)
     const numSections = schema.sections.length || 1;
-    const lessonDuration = Math.max(10, Math.round((parseInt(schema.estimatedDuration, 10) || 60) / numSections));
+    const lessonDuration = Math.max(5, Math.round(durationMinutes / numSections));
 
     for (let lIdx = 0; lIdx < schema.sections.length; lIdx++) {
       const sec = schema.sections[lIdx];
-      await this.prisma.lesson.create({
+      const createdModule = await this.prisma.module.create({
         data: {
-          moduleId: createdModule.id,
-          title: sec.title,
-          description: `Section ${lIdx + 1} of ${schema.title}`,
-          lessonType: 'TEXT',
-          content: sec.content,
-          durationMinutes: lessonDuration,
+          courseId: createdCourse.id,
+          title: sec.title || `Module ${lIdx + 1}: ${schema.title} Part ${lIdx + 1}`,
           order: lIdx + 1,
         },
       });
+
+      if (Array.isArray(sec.lessons) && sec.lessons.length > 0) {
+        const subDuration = Math.max(5, Math.round(lessonDuration / sec.lessons.length));
+        for (let subIdx = 0; subIdx < sec.lessons.length; subIdx++) {
+          const sub = sec.lessons[subIdx];
+          await this.prisma.lesson.create({
+            data: {
+              moduleId: createdModule.id,
+              title: sub.title || `Lesson ${lIdx + 1}.${subIdx + 1}`,
+              description: sub.summary || `Lesson ${subIdx + 1} of Module ${lIdx + 1}`,
+              lessonType: 'TEXT',
+              content: sub.content || sec.content || `## ${sub.title}\n\nContent for this lesson.`,
+              durationMinutes: subDuration,
+              order: subIdx + 1,
+            },
+          });
+        }
+      } else {
+        await this.prisma.lesson.create({
+          data: {
+            moduleId: createdModule.id,
+            title: sec.lessonTitle || sec.title || `Lesson ${lIdx + 1}.1: Overview`,
+            description: `Core operational lesson for Module ${lIdx + 1}`,
+            lessonType: 'TEXT',
+            content: sec.content || `## ${sec.title}\n\nComprehensive lesson content for this module.`,
+            durationMinutes: lessonDuration,
+            order: 1,
+          },
+        });
+      }
     }
 
     // 4. Create Quiz and Questions from Schema Quiz
@@ -535,7 +588,7 @@ Return ONLY valid JSON matching this exact schema (no markdown fences around the
           title: `${schema.title} Assessment Quiz`,
           passingScorePct: 80,
           maxAttempts: 3,
-          timeLimitMinutes: 15,
+          timeLimitMinutes: Math.max(10, Math.round(durationMinutes * 0.25)),
         },
       });
 
@@ -569,11 +622,15 @@ Return ONLY valid JSON matching this exact schema (no markdown fences around the
       where: { id: createdCourse.id },
       include: {
         modules: {
-          include: { lessons: true },
+          orderBy: { order: 'asc' },
+          include: { 
+            lessons: { orderBy: { order: 'asc' } } 
+          },
         },
         quizzes: {
           include: {
             questions: {
+              orderBy: { order: 'asc' },
               include: { options: true },
             },
           },
@@ -583,6 +640,7 @@ Return ONLY valid JSON matching this exact schema (no markdown fences around the
 
     return {
       ...result,
+      durationMinutes, // single source of truth
       schema, // attach standardized schema for UI studio state
     };
   }

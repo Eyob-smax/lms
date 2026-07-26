@@ -13,6 +13,11 @@ export class AssignCohortDto {
   @IsEnum(Role)
   targetRole?: Role;
 
+  @ApiPropertyOptional({ description: 'Alias for targetRole', enum: Role })
+  @IsOptional()
+  @IsEnum(Role)
+  role?: Role;
+
   @ApiPropertyOptional({ description: 'Target department / service line (e.g. Sales, SDR, BDR, Customer Support, IT, HR)', example: 'SDR' })
   @IsOptional()
   @IsString()

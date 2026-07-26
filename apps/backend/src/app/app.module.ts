@@ -13,6 +13,7 @@ import { AnalyticsModule } from '../analytics/analytics.module';
 import { CertificatesModule } from '../certificates/certificates.module';
 import { JobsModule } from '../jobs/jobs.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { EmailModule } from '../email/email.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -36,6 +37,7 @@ import { AppService } from './app.service';
     CertificatesModule,
     JobsModule,
     NotificationsModule,
+    EmailModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -10,6 +10,12 @@ import {
   Send,
   Users,
   AlertCircle,
+  Edit3,
+  Save,
+  Plus,
+  Trash2,
+  FileText,
+  Layers,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { apiClient } from '../../../../../lib/api-client';
@@ -20,13 +26,18 @@ export default function AICourseBuilderPage() {
   // AI Prompt Inputs
   const [topic, setTopic] = useState('');
   const [targetRole, setTargetRole] = useState('SDR');
+  const [targetDept, setTargetDept] = useState('Sales & Support');
+  const [experienceLevel, setExperienceLevel] = useState('Intermediate');
+  const [industry, setIndustry] = useState('Enterprise SaaS');
+  const [prerequisites, setPrerequisites] = useState('Basic BPO and SaaS onboarding knowledge');
   const [durationMinutes, setDurationMinutes] = useState('45');
   const [moduleCount, setModuleCount] = useState('3');
   const [isGenerating, setIsGenerating] = useState(false);
 
   // Generated & Editable Draft State
   const [draft, setDraft] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<'preview' | 'edit-course' | 'edit-quiz'>('preview');
+  const [activeTab, setActiveTab] = useState<'preview' | 'edit-modules' | 'edit-quiz'>('preview');
+  const [isSaving, setIsSaving] = useState(false);
 
   // Users List for Targeted Assignment
   const [usersList, setUsersList] = useState<any[]>([]);
@@ -74,16 +85,20 @@ export default function AICourseBuilderPage() {
       const res = await apiClient.post('/ai-courses/generate-draft', {
         topic,
         targetRole,
+        targetDepartment: targetDept,
+        experienceLevel,
+        industry,
+        prerequisites: prerequisites.split(',').map((s) => s.trim()).filter(Boolean),
         durationMinutes: parseInt(durationMinutes, 10),
         moduleCount: parseInt(moduleCount, 10),
       });
 
       setDraft(res.data);
       setActiveTab('preview');
-      
+
       Swal.fire({
         title: 'Draft Generated!',
-        text: 'Your AI course draft is ready for review.',
+        text: `Synthesized structured course with ${res.data?.course?.modules?.length || moduleCount} modules. Ready for review and inline editing.`,
         icon: 'success',
         confirmButtonColor: '#4d44e3',
         timer: 2000,
@@ -104,9 +119,39 @@ export default function AICourseBuilderPage() {
     }
   };
 
+  const handleSaveDraft = async () => {
+    if (!draft || !draft.course?.id) return;
+    setIsSaving(true);
+    try {
+      await apiClient.put(`/ai-courses/draft/${draft.course.id}`, {
+        course: draft.course,
+        quiz: draft.quiz,
+      });
+      Swal.fire({
+        title: 'Draft Saved!',
+        text: 'All course metadata, module titles, lesson markdown, and quiz edits persisted.',
+        icon: 'success',
+        confirmButtonColor: '#4d44e3',
+        timer: 1500,
+        showConfirmButton: false,
+        customClass: { popup: 'rounded-2xl shadow-lg' }
+      });
+    } catch (err: any) {
+      console.error('Save draft error:', err);
+      Swal.fire({
+        title: 'Save Failed',
+        text: err.response?.data?.message || 'Failed to persist draft edits.',
+        icon: 'error',
+        confirmButtonColor: '#4d44e3',
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handlePublishCourse = async () => {
     if (!draft) return;
-    
+
     const result = await Swal.fire({
       title: 'Publish Course?',
       text: `Are you sure you want to publish this course to ${publishTarget.toLowerCase()}?`,
@@ -127,6 +172,13 @@ export default function AICourseBuilderPage() {
     setIsPublishing(true);
 
     try {
+      if (draft.course?.id) {
+        await apiClient.put(`/ai-courses/draft/${draft.course.id}`, {
+          course: draft.course,
+          quiz: draft.quiz,
+        }).catch(() => {});
+      }
+
       const payload: any = {
         course: draft.course,
         quiz: draft.quiz,
@@ -166,19 +218,65 @@ export default function AICourseBuilderPage() {
   };
 
   // Inline Draft Editors
-  const handleUpdateCourseTitle = (newTitle: string) => {
+  const handleUpdateCourseProperty = (field: string, val: any) => {
     setDraft({
       ...draft,
-      course: { ...draft.course, title: newTitle },
+      course: { ...draft.course, [field]: val },
+    });
+  };
+
+  const handleUpdateModuleTitle = (mIdx: number, newTitle: string) => {
+    const newModules = [...(draft.course.modules || [])];
+    newModules[mIdx] = { ...newModules[mIdx], title: newTitle };
+    setDraft({
+      ...draft,
+      course: { ...draft.course, modules: newModules },
+    });
+  };
+
+  const handleUpdateLessonProperty = (mIdx: number, lIdx: number, field: string, val: any) => {
+    const newModules = [...(draft.course.modules || [])];
+    const newLessons = [...(newModules[mIdx]?.lessons || [])];
+    newLessons[lIdx] = { ...newLessons[lIdx], [field]: val };
+    newModules[mIdx] = { ...newModules[mIdx], lessons: newLessons };
+    setDraft({
+      ...draft,
+      course: { ...draft.course, modules: newModules },
     });
   };
 
   const handleUpdateQuestion = (qIndex: number, updatedQ: any) => {
-    const updatedQuestions = [...draft.quiz.questions];
+    const updatedQuestions = [...(draft.quiz?.questions || [])];
     updatedQuestions[qIndex] = updatedQ;
     setDraft({
       ...draft,
       quiz: { ...draft.quiz, questions: updatedQuestions },
+    });
+  };
+
+  const handleAddQuestion = () => {
+    const currentQ = draft.quiz?.questions || [];
+    const newQ = {
+      questionText: 'New Multiple Choice Assessment Question?',
+      questionType: 'multiple_choice',
+      options: ['Option A', 'Option B', 'Option C', 'Option D'],
+      correctOptionIndex: 0,
+      explanation: 'Review operational guidelines for correct answer rationale.',
+      points: 1,
+      order: currentQ.length + 1,
+    };
+    setDraft({
+      ...draft,
+      quiz: { ...draft.quiz, questions: [...currentQ, newQ] },
+    });
+  };
+
+  const handleDeleteQuestion = (qIndex: number) => {
+    const currentQ = [...(draft.quiz?.questions || [])];
+    currentQ.splice(qIndex, 1);
+    setDraft({
+      ...draft,
+      quiz: { ...draft.quiz, questions: currentQ },
     });
   };
 
@@ -231,7 +329,7 @@ export default function AICourseBuilderPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <label className="block font-geist text-xs font-bold text-slate-700 uppercase tracking-wide">
-                  Target Audience
+                  Target Role
                 </label>
                 <select
                   value={targetRole}
@@ -239,13 +337,75 @@ export default function AICourseBuilderPage() {
                   className="w-full bg-white border border-slate-200 rounded-xl font-geist text-sm font-semibold text-slate-900 px-3 py-2.5 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all shadow-sm cursor-pointer"
                 >
                   <option value="SDR">SDR (Sales Dev)</option>
-                  <option value="Sales">Outbound Sales</option>
+                  <option value="BDR">BDR (Business Dev)</option>
+                  <option value="Account Executive">Account Executive</option>
                   <option value="Customer Support">Customer Support</option>
-                  <option value="Telemarketing">Telemarketing</option>
-                  <option value="IT Operations">IT & Operations</option>
+                  <option value="Team Lead">Team Lead</option>
                 </select>
               </div>
 
+              <div className="space-y-1.5">
+                <label className="block font-geist text-xs font-bold text-slate-700 uppercase tracking-wide">
+                  Department
+                </label>
+                <select
+                  value={targetDept}
+                  onChange={(e) => setTargetDept(e.target.value)}
+                  className="w-full bg-white border border-slate-200 rounded-xl font-geist text-sm font-semibold text-slate-900 px-3 py-2.5 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all shadow-sm cursor-pointer"
+                >
+                  <option value="Sales & Support">Sales & Support</option>
+                  <option value="Customer Success">Customer Success</option>
+                  <option value="IT & Operations">IT & Operations</option>
+                  <option value="HR & Onboarding">HR & Onboarding</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="block font-geist text-xs font-bold text-slate-700 uppercase tracking-wide">
+                  Experience Level
+                </label>
+                <select
+                  value={experienceLevel}
+                  onChange={(e) => setExperienceLevel(e.target.value)}
+                  className="w-full bg-white border border-slate-200 rounded-xl font-geist text-sm font-semibold text-slate-900 px-3 py-2.5 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all shadow-sm cursor-pointer"
+                >
+                  <option value="Beginner">Beginner / New Hire</option>
+                  <option value="Intermediate">Intermediate</option>
+                  <option value="Advanced">Advanced</option>
+                  <option value="Senior Lead">Senior Lead / Specialist</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block font-geist text-xs font-bold text-slate-700 uppercase tracking-wide">
+                  Industry Focus
+                </label>
+                <input
+                  type="text"
+                  value={industry}
+                  onChange={(e) => setIndustry(e.target.value)}
+                  placeholder="e.g. Enterprise SaaS, BPO..."
+                  className="w-full bg-white border border-slate-200 rounded-xl font-inter text-sm text-slate-900 px-3 py-2.5 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all shadow-sm"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block font-geist text-xs font-bold text-slate-700 uppercase tracking-wide">
+                Prerequisites (comma separated)
+              </label>
+              <input
+                type="text"
+                value={prerequisites}
+                onChange={(e) => setPrerequisites(e.target.value)}
+                placeholder="e.g. Basic CRM skills, SaaS overview"
+                className="w-full bg-white border border-slate-200 rounded-xl font-inter text-sm text-slate-900 px-3 py-2.5 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all shadow-sm"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <label className="block font-geist text-xs font-bold text-slate-700 uppercase tracking-wide">
                   Est. Duration
@@ -259,23 +419,24 @@ export default function AICourseBuilderPage() {
                   <option value="45">45 Minutes</option>
                   <option value="60">60 Minutes</option>
                   <option value="90">90 Minutes</option>
+                  <option value="120">120 Minutes</option>
                 </select>
               </div>
-            </div>
 
-            <div className="space-y-1.5">
-              <label className="block font-geist text-xs font-bold text-slate-700 uppercase tracking-wide">
-                Module Breakdown Count
-              </label>
-              <select
-                value={moduleCount}
-                onChange={(e) => setModuleCount(e.target.value)}
-                className="w-full bg-white border border-slate-200 rounded-xl font-geist text-sm font-semibold text-slate-900 px-3 py-2.5 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all shadow-sm cursor-pointer"
-              >
-                <option value="2">2 Modules (Quick Training)</option>
-                <option value="3">3 Modules (Standard Syllabus)</option>
-                <option value="4">4 Modules (Deep Dive)</option>
-              </select>
+              <div className="space-y-1.5">
+                <label className="block font-geist text-xs font-bold text-slate-700 uppercase tracking-wide">
+                  Module Count (1 to 12)
+                </label>
+                <select
+                  value={moduleCount}
+                  onChange={(e) => setModuleCount(e.target.value)}
+                  className="w-full bg-white border border-slate-200 rounded-xl font-geist text-sm font-semibold text-slate-900 px-3 py-2.5 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all shadow-sm cursor-pointer"
+                >
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map((num) => (
+                    <option key={num} value={num}>{num} {num === 1 ? 'Module' : 'Modules'}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <button
@@ -393,51 +554,115 @@ export default function AICourseBuilderPage() {
           {draft ? (
             <div className="bg-slate-900 text-white rounded-3xl border border-slate-800 shadow-2xl shadow-indigo-900/10 overflow-hidden flex flex-col min-h-[600px]">
               {/* Studio Header Tabs */}
-              <div className="p-6 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
-                <div className="flex bg-slate-900 p-1.5 rounded-xl border border-slate-800">
+              <div className="p-6 bg-slate-950 border-b border-slate-800 flex flex-wrap items-center justify-between gap-4">
+                <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800">
                   <button
                     onClick={() => setActiveTab('preview')}
-                    className={`px-4 py-2 rounded-lg font-geist text-sm font-bold transition-all ${
+                    className={`px-3.5 py-2 rounded-lg font-geist text-xs font-bold transition-all flex items-center gap-1.5 ${
                       activeTab === 'preview'
                         ? 'bg-[#4d44e3] text-white shadow-sm'
                         : 'text-slate-400 hover:text-white'
                     }`}
                   >
-                    Course Outline
+                    <BookOpen className="w-3.5 h-3.5" /> Course Outline
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('edit-modules')}
+                    className={`px-3.5 py-2 rounded-lg font-geist text-xs font-bold transition-all flex items-center gap-1.5 ${
+                      activeTab === 'edit-modules'
+                        ? 'bg-[#4d44e3] text-white shadow-sm'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <Edit3 className="w-3.5 h-3.5" /> Edit Markdown & Lessons
                   </button>
                   <button
                     onClick={() => setActiveTab('edit-quiz')}
-                    className={`px-4 py-2 rounded-lg font-geist text-sm font-bold transition-all flex items-center gap-1.5 ${
+                    className={`px-3.5 py-2 rounded-lg font-geist text-xs font-bold transition-all flex items-center gap-1.5 ${
                       activeTab === 'edit-quiz'
                         ? 'bg-[#4d44e3] text-white shadow-sm'
                         : 'text-slate-400 hover:text-white'
                     }`}
                   >
-                    <HelpCircle className="w-4 h-4" /> Quiz ({draft.quiz?.questions?.length || 0})
+                    <HelpCircle className="w-3.5 h-3.5" /> Quiz ({draft.quiz?.questions?.length || 0})
                   </button>
                 </div>
 
-                <span className="font-geist text-[11px] font-extrabold tracking-widest text-emerald-400 bg-emerald-950/50 px-3 py-1.5 rounded-md border border-emerald-900">
-                  AI DRAFT READY
-                </span>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleSaveDraft}
+                    disabled={isSaving}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-geist text-xs font-bold rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    <span>{isSaving ? 'Saving Draft...' : 'Save Draft Edits'}</span>
+                  </button>
+
+                  <span className="font-geist text-[11px] font-extrabold tracking-widest text-emerald-400 bg-emerald-950/50 px-3 py-1.5 rounded-md border border-emerald-900 hidden sm:inline-block">
+                    AI DRAFT READY
+                  </span>
+                </div>
               </div>
 
-              {/* Tab 1: Course Markdown Preview */}
+              {/* Tab 1: Course Markdown Preview & Metadata */}
               {activeTab === 'preview' && (
                 <div className="p-6 md:p-8 flex-1 space-y-8 overflow-y-auto">
-                  <div>
+                  <div className="space-y-4 bg-slate-800/40 p-6 rounded-2xl border border-slate-800">
+                    <label className="block font-geist text-xs font-bold text-slate-400 uppercase tracking-wide">
+                      Course Title
+                    </label>
                     <input
                       type="text"
                       value={draft.course.title}
-                      onChange={(e) => handleUpdateCourseTitle(e.target.value)}
-                      className="w-full font-geist text-2xl font-extrabold text-white bg-transparent border-b border-slate-800 pb-2 focus:outline-none focus:border-[#4d44e3] transition-colors"
+                      onChange={(e) => handleUpdateCourseProperty('title', e.target.value)}
+                      className="w-full font-geist text-2xl font-extrabold text-white bg-slate-900 border border-slate-800 rounded-xl p-3 focus:outline-none focus:border-[#4d44e3] transition-colors"
                     />
-                    <p className="font-inter text-sm text-slate-400 mt-3 leading-relaxed">
-                      {draft.course.description}
-                    </p>
+
+                    <label className="block font-geist text-xs font-bold text-slate-400 uppercase tracking-wide pt-2">
+                      Course Description
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={draft.course.description}
+                      onChange={(e) => handleUpdateCourseProperty('description', e.target.value)}
+                      className="w-full font-inter text-sm text-slate-300 bg-slate-900 border border-slate-800 rounded-xl p-3 focus:outline-none focus:border-[#4d44e3] transition-colors resize-none"
+                    />
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-2">
+                      <div>
+                        <label className="block font-geist text-[11px] font-bold text-slate-400 uppercase">Duration (mins)</label>
+                        <input
+                          type="number"
+                          value={draft.course.durationMinutes || 60}
+                          onChange={(e) => handleUpdateCourseProperty('durationMinutes', parseInt(e.target.value, 10) || 60)}
+                          className="w-full mt-1 bg-slate-900 border border-slate-800 rounded-lg p-2 text-sm text-white font-semibold"
+                        />
+                      </div>
+                      <div>
+                        <label className="block font-geist text-[11px] font-bold text-slate-400 uppercase">Difficulty</label>
+                        <select
+                          value={draft.course.difficulty || 'Intermediate'}
+                          onChange={(e) => handleUpdateCourseProperty('difficulty', e.target.value)}
+                          className="w-full mt-1 bg-slate-900 border border-slate-800 rounded-lg p-2 text-sm text-white font-semibold cursor-pointer"
+                        >
+                          <option value="Beginner">Beginner</option>
+                          <option value="Intermediate">Intermediate</option>
+                          <option value="Advanced">Advanced</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block font-geist text-[11px] font-bold text-slate-400 uppercase">Category</label>
+                        <input
+                          type="text"
+                          value={draft.course.category || 'Operations'}
+                          onChange={(e) => handleUpdateCourseProperty('category', e.target.value)}
+                          className="w-full mt-1 bg-slate-900 border border-slate-800 rounded-lg p-2 text-sm text-white font-semibold"
+                        />
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Modules List */}
+                  {/* Modules List Preview */}
                   <div className="space-y-6">
                     {draft.course.modules?.map((mod: any, mIdx: number) => (
                       <div key={mIdx} className="bg-slate-800/50 p-6 rounded-2xl border border-slate-800 space-y-4">
@@ -502,26 +727,134 @@ export default function AICourseBuilderPage() {
                 </div>
               )}
 
-              {/* Tab 2: Quiz & Questions Editor */}
+              {/* Tab 2: Interactive Module & Markdown Editor */}
+              {activeTab === 'edit-modules' && (
+                <div className="p-6 md:p-8 flex-1 space-y-8 overflow-y-auto">
+                  <div className="border-b border-slate-800 pb-4">
+                    <h3 className="font-geist text-xl font-extrabold text-white flex items-center gap-2">
+                      <Edit3 className="w-5 h-5 text-[#4d44e3]" />
+                      <span>Inline Curriculum & Lesson Editor</span>
+                    </h3>
+                    <p className="font-inter text-sm text-slate-400 mt-1">
+                      Edit module titles, lesson names, duration, and raw markdown content below. Changes persist when saving draft.
+                    </p>
+                  </div>
+
+                  <div className="space-y-8">
+                    {draft.course.modules?.map((mod: any, mIdx: number) => (
+                      <div key={mIdx} className="bg-slate-800/40 p-6 rounded-2xl border border-slate-800 space-y-5">
+                        <div className="flex items-center gap-3">
+                          <span className="w-8 h-8 rounded-lg bg-[#4d44e3] text-white font-bold flex items-center justify-center text-sm">
+                            M{mIdx + 1}
+                          </span>
+                          <div className="flex-1">
+                            <label className="block font-geist text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                              Module Title
+                            </label>
+                            <input
+                              type="text"
+                              value={mod.title}
+                              onChange={(e) => handleUpdateModuleTitle(mIdx, e.target.value)}
+                              className="w-full font-geist text-base font-bold text-white bg-slate-900 border border-slate-700 rounded-xl p-2.5 mt-1 focus:outline-none focus:border-[#4d44e3]"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-6 pl-4 md:pl-8 border-l border-slate-800">
+                          {mod.lessons?.map((les: any, lIdx: number) => (
+                            <div key={lIdx} className="bg-slate-900 p-5 rounded-2xl border border-slate-800 space-y-4">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <div className="flex-1">
+                                  <label className="block font-geist text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                    Lesson {lIdx + 1} Title
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={les.title}
+                                    onChange={(e) => handleUpdateLessonProperty(mIdx, lIdx, 'title', e.target.value)}
+                                    className="w-full font-geist text-sm font-bold text-white bg-slate-950 border border-slate-800 rounded-lg p-2 mt-1 focus:outline-none focus:border-[#4d44e3]"
+                                  />
+                                </div>
+                                <div className="w-28">
+                                  <label className="block font-geist text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                    Duration (m)
+                                  </label>
+                                  <input
+                                    type="number"
+                                    value={les.durationMinutes || 10}
+                                    onChange={(e) => handleUpdateLessonProperty(mIdx, lIdx, 'durationMinutes', parseInt(e.target.value, 10) || 10)}
+                                    className="w-full font-geist text-sm font-bold text-white bg-slate-950 border border-slate-800 rounded-lg p-2 mt-1 focus:outline-none focus:border-[#4d44e3]"
+                                  />
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="block font-geist text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                                  <span>Lesson Markdown Content (Rich Text / Code / Tables)</span>
+                                  <span className="text-slate-500 font-normal">Supports GitHub Flavored Markdown</span>
+                                </label>
+                                <textarea
+                                  rows={8}
+                                  value={les.content || ''}
+                                  onChange={(e) => handleUpdateLessonProperty(mIdx, lIdx, 'content', e.target.value)}
+                                  className="w-full font-mono text-xs text-slate-200 bg-slate-950 border border-slate-800 rounded-xl p-3.5 focus:outline-none focus:border-[#4d44e3] leading-relaxed resize-y"
+                                  placeholder="# Lesson Header&#10;&#10;Write comprehensive operational instructions here..."
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Tab 3: Quiz & Questions Editor */}
               {activeTab === 'edit-quiz' && (
                 <div className="p-6 md:p-8 flex-1 space-y-8 overflow-y-auto">
-                  <div className="border-b border-slate-800 pb-6">
-                    <h3 className="font-geist text-2xl font-extrabold text-white">
-                      {draft.quiz?.title || 'Generated Assessment Quiz'}
-                    </h3>
-                    <p className="font-inter text-sm text-slate-400 mt-2">
-                      Passing threshold: <span className="text-white font-bold">{draft.quiz?.passingScorePct || 80}%</span> • Review and edit questions before publishing.
-                    </p>
+                  <div className="border-b border-slate-800 pb-6 grid grid-cols-1 sm:grid-cols-3 gap-6">
+                    <div className="sm:col-span-2 space-y-1.5">
+                      <label className="block font-geist text-xs font-bold text-slate-400 uppercase tracking-wide">
+                        Assessment Quiz Title
+                      </label>
+                      <input
+                        type="text"
+                        value={draft.quiz?.title || ''}
+                        onChange={(e) => setDraft({ ...draft, quiz: { ...draft.quiz, title: e.target.value } })}
+                        className="w-full font-geist text-xl font-extrabold text-white bg-slate-900 border border-slate-800 rounded-xl p-2.5 focus:outline-none focus:border-[#4d44e3]"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="block font-geist text-xs font-bold text-slate-400 uppercase tracking-wide">
+                        Passing Threshold (%)
+                      </label>
+                      <input
+                        type="number"
+                        value={draft.quiz?.passingScorePct || 80}
+                        onChange={(e) => setDraft({ ...draft, quiz: { ...draft.quiz, passingScorePct: parseInt(e.target.value, 10) || 80 } })}
+                        className="w-full font-geist text-xl font-extrabold text-white bg-slate-900 border border-slate-800 rounded-xl p-2.5 focus:outline-none focus:border-[#4d44e3]"
+                      />
+                    </div>
                   </div>
 
                   <div className="space-y-6">
                     {draft.quiz?.questions?.map((q: any, qIdx: number) => (
-                      <div key={qIdx} className="bg-slate-800/50 p-6 rounded-2xl border border-slate-800 space-y-5">
-                        <div className="flex justify-between items-start gap-2">
+                      <div key={qIdx} className="bg-slate-800/50 p-6 rounded-2xl border border-slate-800 space-y-5 relative group">
+                        <div className="flex justify-between items-center gap-2">
                           <span className="font-geist text-sm font-bold text-[#4d44e3]">Question {qIdx + 1}</span>
-                          <span className="font-geist text-[10px] font-extrabold uppercase tracking-widest bg-indigo-900/50 text-indigo-400 border border-indigo-800 px-2 py-1 rounded-md">
-                            {q.questionType}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-geist text-[10px] font-extrabold uppercase tracking-widest bg-indigo-900/50 text-indigo-400 border border-indigo-800 px-2 py-1 rounded-md">
+                              {q.questionType || 'multiple_choice'}
+                            </span>
+                            <button
+                              onClick={() => handleDeleteQuestion(qIdx)}
+                              className="p-1.5 bg-red-950/40 text-red-400 hover:bg-red-900/50 hover:text-red-300 rounded-lg transition-colors border border-red-900/50 cursor-pointer"
+                              title="Delete Question"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
 
                         <input
@@ -580,6 +913,16 @@ export default function AICourseBuilderPage() {
                         </div>
                       </div>
                     ))}
+
+                    <div className="pt-4 text-center">
+                      <button
+                        type="button"
+                        onClick={handleAddQuestion}
+                        className="px-6 py-3 bg-indigo-950/60 hover:bg-indigo-900/80 text-indigo-300 font-geist font-bold text-sm rounded-2xl border border-indigo-800/80 transition-all inline-flex items-center gap-2 cursor-pointer shadow-lg shadow-indigo-950/20"
+                      >
+                        <Plus className="w-4 h-4" /> Add Assessment Question
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}

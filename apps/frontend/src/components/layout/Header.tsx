@@ -15,8 +15,11 @@ import {
   AlertTriangle,
   Info,
   Check,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { apiClient } from '../../lib/api-client';
+import Swal from 'sweetalert2';
 
 interface HeaderProps {
   user?: {
@@ -34,10 +37,45 @@ export default function Header({ user, onMenuToggle }: HeaderProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [notifDropdownOpen, setNotifDropdownOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(user);
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedTheme = localStorage.getItem('lms_theme') as 'light' | 'dark';
+      if (storedTheme === 'dark' || (!storedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        setTheme('dark');
+        document.documentElement.classList.add('dark');
+      } else {
+        setTheme('light');
+        document.documentElement.classList.remove('dark');
+      }
+    }
+  }, []);
+
+  const handleToggleTheme = () => {
+    if (typeof window !== 'undefined') {
+      const newTheme = theme === 'light' ? 'dark' : 'light';
+      setTheme(newTheme);
+      localStorage.setItem('lms_theme', newTheme);
+      if (newTheme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    }
+  };
 
   // Notification states
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [headerSearch, setHeaderSearch] = useState('');
+
+  const handleHeaderSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (headerSearch.trim()) {
+      router.push(`/courses?search=${encodeURIComponent(headerSearch.trim())}`);
+    }
+  };
 
   useEffect(() => {
     if (!currentUser && typeof window !== 'undefined') {
@@ -106,7 +144,50 @@ export default function Header({ user, onMenuToggle }: HeaderProps) {
     }
   };
 
+  const getRealRole = () => {
+    if ((currentUser as any)?.realRole) return (currentUser as any).realRole;
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('lms_user');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          return parsed.role;
+        } catch {}
+      }
+    }
+    return currentUser?.role;
+  };
+  const realRole = getRealRole();
+  const isRealAdmin = realRole === 'ADMIN';
   const isAdmin = currentUser?.role === 'ADMIN';
+  const isSimulatedAgent = isRealAdmin && currentUser?.role === 'AGENT';
+
+  const handleSwitchRole = () => {
+    if (typeof window !== 'undefined') {
+      const currentSim = localStorage.getItem('lms_simulated_role');
+      if (currentSim === 'AGENT') {
+        localStorage.removeItem('lms_simulated_role');
+        Swal.fire({
+          title: 'Admin Role Restored',
+          text: 'You are now viewing the platform with full Administrator privileges.',
+          icon: 'info',
+          timer: 1500,
+          showConfirmButton: false,
+          customClass: { popup: 'rounded-2xl shadow-lg' }
+        }).then(() => window.location.reload());
+      } else {
+        localStorage.setItem('lms_simulated_role', 'AGENT');
+        Swal.fire({
+          title: 'Switched to Learner View',
+          text: 'You are now previewing the LMS as an Agent/Learner. Admin controls are hidden.',
+          icon: 'success',
+          timer: 1500,
+          showConfirmButton: false,
+          customClass: { popup: 'rounded-2xl shadow-lg' }
+        }).then(() => window.location.reload());
+      }
+    }
+  };
 
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-slate-200 min-h-[72px] flex items-center px-6 lg:px-8 w-full shadow-sm">
@@ -118,7 +199,7 @@ export default function Header({ user, onMenuToggle }: HeaderProps) {
             <div className="w-8 h-8 rounded-lg bg-[#4d44e3] flex items-center justify-center text-white shadow-sm shrink-0">
               <span className="font-geist font-bold text-sm">L</span>
             </div>
-            <span className="font-geist text-lg font-bold text-slate-900">LMS Admin</span>
+            <span className="font-geist text-lg font-bold text-slate-900">LMS Enterprise</span>
           </div>
 
           {/* Tabs */}
@@ -127,7 +208,7 @@ export default function Header({ user, onMenuToggle }: HeaderProps) {
               href="/dashboard"
               className={`px-4 py-2 rounded-full text-sm font-inter font-medium transition-colors ${
                 !pathname?.startsWith('/admin')
-                  ? 'bg-slate-100 text-slate-900'
+                  ? 'bg-slate-100 text-slate-900 font-bold'
                   : 'text-slate-500 hover:bg-slate-50'
               }`}
             >
@@ -138,7 +219,7 @@ export default function Header({ user, onMenuToggle }: HeaderProps) {
                 href="/admin/analytics"
                 className={`px-4 py-2 rounded-full text-sm font-inter font-medium transition-colors ${
                   pathname?.startsWith('/admin')
-                    ? 'bg-slate-100 text-slate-900'
+                    ? 'bg-slate-100 text-slate-900 font-bold'
                     : 'text-slate-500 hover:bg-slate-50'
                 }`}
               >
@@ -150,33 +231,58 @@ export default function Header({ user, onMenuToggle }: HeaderProps) {
 
         {/* Center: Search */}
         <div className="hidden lg:flex flex-1 max-w-md mx-8">
-          <div className="relative w-full">
+          <form onSubmit={handleHeaderSearch} className="relative w-full">
             <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
+              value={headerSearch}
+              onChange={(e) => setHeaderSearch(e.target.value)}
               placeholder="Search courses, users, or reports..."
               className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-full text-sm font-inter text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#4d44e3] focus:ring-1 focus:ring-[#4d44e3] transition-all shadow-sm"
             />
-          </div>
+          </form>
         </div>
 
         {/* Right Actions & User Menu */}
         <div className="flex items-center gap-4">
-          {isAdmin && (
+          {isRealAdmin && (
             <>
-              <button className="hidden sm:block px-4 py-2 text-sm font-inter font-medium text-slate-500 hover:text-slate-900 transition-colors">
-                Switch Role
-              </button>
-              <Link
-                href="/admin/courses/builder"
-                className="hidden sm:flex items-center gap-2 px-4 py-2 bg-[#4d44e3] hover:bg-[#3b32d1] text-white rounded-lg text-sm font-inter font-medium transition-colors shadow-sm"
+              <button
+                onClick={handleSwitchRole}
+                className={`hidden sm:flex items-center gap-1.5 px-3 py-2 text-xs font-inter font-bold rounded-xl transition-all cursor-pointer ${
+                  isSimulatedAgent
+                    ? 'bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200 shadow-sm animate-pulse'
+                    : 'bg-slate-100 text-slate-700 hover:text-slate-900 hover:bg-slate-200'
+                }`}
               >
-                Create Course
-              </Link>
+                <ShieldCheck className="w-4 h-4" />
+                <span>{isSimulatedAgent ? 'Exit Learner View' : 'Switch to Learner View'}</span>
+              </button>
+              {!isSimulatedAgent && (
+                <Link
+                  href="/admin/courses/builder"
+                  className="hidden sm:flex items-center gap-2 px-4 py-2 bg-[#4d44e3] hover:bg-[#3b32d1] text-white rounded-lg text-sm font-inter font-medium transition-colors shadow-sm"
+                >
+                  Create Course
+                </Link>
+              )}
             </>
           )}
 
           <div className="w-px h-6 bg-slate-200 hidden sm:block"></div>
+
+          {/* Theme Toggle Button */}
+          <button
+            onClick={handleToggleTheme}
+            title={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
+            className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 dark:hover:text-white rounded-full transition-colors cursor-pointer"
+          >
+            {theme === 'light' ? (
+              <Moon className="w-5 h-5" />
+            ) : (
+              <Sun className="w-5 h-5 text-amber-400" />
+            )}
+          </button>
 
           {/* Notifications & Help */}
           <div className="relative">

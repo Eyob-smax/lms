@@ -8,6 +8,7 @@ import { QueryUsersDto } from './dto/query-users.dto';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto';
 import { UpdateUserDepartmentDto } from './dto/update-user-department.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { CreateUserDto } from './dto/create-user.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -19,6 +20,14 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
+
+  @ApiOperation({ summary: 'Create new user and send invitation email (Admin only)' })
+  @ApiResponse({ status: 201, description: 'User created and invited' })
+  @Roles(Role.ADMIN)
+  @Post()
+  createUser(@Body() dto: CreateUserDto) {
+    return this.usersService.createUser(dto);
+  }
 
   @ApiOperation({ summary: 'Get current user profile' })
   @ApiResponse({ status: 200, description: 'User profile returned' })

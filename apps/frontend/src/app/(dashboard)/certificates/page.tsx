@@ -32,14 +32,44 @@ export default function CertificatesPage() {
   const [loading, setLoading] = useState(true);
 
   // Tab state for Admin View
-  const [activeTab, setActiveTab] = useState<'my-certificates' | 'admin-approvals'>('my-certificates');
+  const [activeTab, setActiveTab] = useState<'my-achievements' | 'eligible' | 'verified' | 'admin-management'>('my-achievements');
   const [adminSubTab, setAdminSubTab] = useState<'pending' | 'approved' | 'rejected'>('pending');
+  const [verificationCodeInput, setVerificationCodeInput] = useState('');
+  const [verifyLoading, setVerifyLoading] = useState(false);
 
   // Request & Action States
   const [requestingId, setRequestingId] = useState<string | null>(null);
 
   // Verification Modal State
   const [verifyModalCert, setVerifyModalCert] = useState<any>(null);
+
+  const handleVerifyLookup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!verificationCodeInput.trim()) return;
+    setVerifyLoading(true);
+    try {
+      const res = await apiClient.get(`/certificates/verify/${encodeURIComponent(verificationCodeInput.trim())}`);
+      if (res.data && res.data.valid) {
+        setVerifyModalCert(res.data);
+      } else {
+        Swal.fire({
+          icon: 'error',
+          title: 'Verification Failed',
+          text: 'No valid certificate found with that code.',
+          confirmButtonColor: '#ef4444',
+        });
+      }
+    } catch (err) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Verification Failed',
+        text: 'Invalid or expired certificate code.',
+        confirmButtonColor: '#ef4444',
+      });
+    } finally {
+      setVerifyLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -201,37 +231,64 @@ export default function CertificatesPage() {
           </p>
         </div>
 
-        {/* Tab Switcher if Admin */}
-        {isAdmin && (
-          <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200/60 shadow-inner">
-            <button
-              onClick={() => setActiveTab('my-certificates')}
-              className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all ${
-                activeTab === 'my-certificates'
-                  ? 'bg-white text-[#4d44e3] shadow-md border border-slate-100'
-                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
-              }`}
-            >
-              My Achievements
-            </button>
+        {/* Tab Switcher */}
+        <div className="flex flex-wrap bg-slate-100 p-1.5 rounded-2xl border border-slate-200/60 shadow-inner gap-1">
+          <button
+            onClick={() => setActiveTab('my-achievements')}
+            className={`px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all ${
+              activeTab === 'my-achievements'
+                ? 'bg-white text-[#4d44e3] shadow-md border border-slate-100'
+                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+            }`}
+          >
+            My Achievements
+          </button>
 
+          <button
+            onClick={() => setActiveTab('eligible')}
+            className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all ${
+              activeTab === 'eligible'
+                ? 'bg-white text-[#4d44e3] shadow-md border border-slate-100'
+                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+            }`}
+          >
+            <ShieldCheck className="w-4 h-4" /> Eligible for Certification
+            {completedEnrollments.length > 0 && (
+              <span className="px-1.5 py-0.5 bg-emerald-500 text-white rounded-full text-[10px] shadow-sm ml-1">
+                {completedEnrollments.length}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveTab('verified')}
+            className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all ${
+              activeTab === 'verified'
+                ? 'bg-white text-[#4d44e3] shadow-md border border-slate-100'
+                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+            }`}
+          >
+            <Award className="w-4 h-4" /> Verified Professional Certificates
+          </button>
+
+          {isAdmin && (
             <button
-              onClick={() => setActiveTab('admin-approvals')}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all relative ${
-                activeTab === 'admin-approvals'
+              onClick={() => setActiveTab('admin-management')}
+              className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all relative ${
+                activeTab === 'admin-management'
                   ? 'bg-white text-[#4d44e3] shadow-md border border-slate-100'
                   : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
               }`}
             >
               <FileCheck className="w-4 h-4" /> Admin Management
               {pendingRequests.length > 0 && (
-                <span className="px-2 py-0.5 bg-rose-500 text-white rounded-full text-[10px] shadow-sm ml-1">
+                <span className="px-1.5 py-0.5 bg-rose-500 text-white rounded-full text-[10px] shadow-sm ml-1">
                   {pendingRequests.length}
                 </span>
               )}
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Main View: My Achievements Tab */}
@@ -340,15 +397,19 @@ export default function CertificatesPage() {
               </div>
             )}
           </div>
+        </div>
+      )}
 
-          {/* Eligible Completed Courses (Request Button Pop Up) */}
-          {completedEnrollments.length > 0 && (
-            <div className="pt-10 border-t border-slate-200">
-              <h2 className="font-geist text-2xl font-extrabold text-slate-900 mb-6 flex items-center gap-3">
-                <ShieldCheck className="w-6 h-6 text-emerald-500" />
-                Eligible for Certification
-              </h2>
+      {/* Tab 2: Eligible for Certification */}
+      {activeTab === 'eligible' && (
+        <div className="space-y-8 animate-fadeIn">
+          <div>
+            <h2 className="font-geist text-2xl font-extrabold text-slate-900 mb-6 flex items-center gap-3">
+              <ShieldCheck className="w-6 h-6 text-emerald-500" />
+              Eligible for Certification
+            </h2>
 
+            {completedEnrollments.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {completedEnrollments.map((enr) => {
                   const existingCert = myCertificates.find((c) => c.enrollmentId === enr.id);
@@ -390,13 +451,96 @@ export default function CertificatesPage() {
                   );
                 })}
               </div>
+            ) : (
+              <div className="bg-white p-16 rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/40 text-center space-y-4">
+                <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <FileCheck className="w-10 h-10 text-slate-300" />
+                </div>
+                <p className="font-geist text-xl font-extrabold text-slate-900">No Eligible Courses Available</p>
+                <p className="font-inter text-sm text-slate-500 max-w-md mx-auto">
+                  You have no newly completed courses awaiting certification. Complete training modules in the Training Center to qualify.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Tab 3: Verified Professional Certificates */}
+      {activeTab === 'verified' && (
+        <div className="space-y-12 animate-fadeIn">
+          {/* Interactive Hash Lookup */}
+          <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-8 rounded-3xl text-white shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+            <div className="max-w-xl">
+              <span className="inline-flex items-center gap-1.5 bg-white/10 px-3 py-1 rounded-full font-geist text-xs font-bold text-indigo-300 uppercase tracking-wider mb-4 border border-white/10">
+                <ShieldCheck className="w-3.5 h-3.5" /> Compliance Verification Ledger
+              </span>
+              <h2 className="font-geist text-3xl font-extrabold tracking-tight">Verify Certificate Hash</h2>
+              <p className="font-inter text-sm text-slate-300 mt-2">
+                Enter any official LMS certificate ID or verification hash (e.g. <code>CERT-...</code>) to validate authenticity and review compliance credentials instantly.
+              </p>
+
+              <form onSubmit={handleVerifyLookup} className="mt-6 flex flex-col sm:flex-row gap-3">
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={verificationCodeInput}
+                    onChange={(e) => setVerificationCodeInput(e.target.value)}
+                    placeholder="Enter verification ID..."
+                    className="w-full pl-11 pr-4 py-3 bg-white/10 border border-white/20 rounded-xl font-mono text-sm text-white placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20 transition-all"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={verifyLoading || !verificationCodeInput.trim()}
+                  className="px-8 py-3 bg-[#4d44e3] hover:bg-indigo-500 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-indigo-600/30 disabled:opacity-50 cursor-pointer shrink-0"
+                >
+                  {verifyLoading ? 'Verifying...' : 'Verify Authenticity'}
+                </button>
+              </form>
             </div>
-          )}
+          </div>
+
+          {/* Ledger Grid */}
+          <div>
+            <h3 className="font-geist text-xl font-extrabold text-slate-900 mb-6 flex items-center gap-2">
+              <Award className="w-5 h-5 text-[#4d44e3]" />
+              Professional Certificate Directory ({isAdmin ? allCertificates.filter(c => c.status === 'APPROVED').length : myCertificates.filter(c => c.status === 'APPROVED').length})
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {(isAdmin ? allCertificates.filter(c => c.status === 'APPROVED') : myCertificates.filter(c => c.status === 'APPROVED')).map((cert) => (
+                <div key={cert.id} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/40 flex flex-col justify-between space-y-4">
+                  <div className="flex items-start justify-between">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-50 text-[#4d44e3] flex items-center justify-center font-bold">
+                      <Award className="w-5 h-5" />
+                    </div>
+                    <span className="bg-emerald-50 text-emerald-700 px-2.5 py-0.5 rounded-full font-bold text-[10px] uppercase border border-emerald-100">
+                      Verified
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-mono text-xs text-[#4d44e3] font-bold">{cert.certificateCode || cert.id}</span>
+                    <h4 className="font-geist text-base font-extrabold text-slate-900 mt-1">{cert.course?.title || cert.enrollment?.course?.title || 'Professional Certification'}</h4>
+                    <p className="font-inter text-xs text-slate-500 mt-1">Recipient: <strong className="text-slate-700">{cert.user?.name || currentUser?.name || 'Authorized Member'}</strong></p>
+                    <p className="font-inter text-[10px] text-slate-400 mt-0.5">Issued: {new Date(cert.issuedAt || cert.createdAt).toLocaleDateString()}</p>
+                  </div>
+                  <button
+                    onClick={() => { setVerificationCodeInput(cert.certificateCode || cert.id); setVerifyModalCert(cert); }}
+                    className="w-full py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl font-semibold text-xs transition-colors border border-slate-200 cursor-pointer"
+                  >
+                    View Audit Trail
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
       {/* Admin Approvals Tab */}
-      {isAdmin && activeTab === 'admin-approvals' && (
+      {isAdmin && activeTab === 'admin-management' && (
         <div className="space-y-8">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-6">
             <h2 className="font-geist text-2xl font-extrabold text-slate-900 flex items-center gap-3">

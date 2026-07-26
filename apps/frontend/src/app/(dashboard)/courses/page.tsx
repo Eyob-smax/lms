@@ -13,6 +13,7 @@ import {
   ArrowRight,
   ChevronDown,
   ShieldAlert,
+  Plus as PlusIcon,
 } from 'lucide-react';
 import { apiClient } from '../../../lib/api-client';
 
@@ -32,8 +33,19 @@ export default function CoursesPage() {
   const [enrollingId, setEnrollingId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchData();
-  }, [selectedCategory, selectedDifficulty]);
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const q = params.get('search');
+      if (q) setSearchQuery(q);
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchData();
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchQuery, selectedCategory, selectedDifficulty]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -117,10 +129,12 @@ export default function CoursesPage() {
   const filteredCatalog = catalogCourses.filter((c) => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
+    const tagsStr = Array.isArray(c.targetAudience) ? c.targetAudience.join(' ').toLowerCase() : '';
     return (
       c.title?.toLowerCase().includes(q) ||
       c.description?.toLowerCase().includes(q) ||
-      c.category?.toLowerCase().includes(q)
+      c.category?.toLowerCase().includes(q) ||
+      tagsStr.includes(q)
     );
   });
 
@@ -270,7 +284,7 @@ export default function CoursesPage() {
                     <div className="p-6 flex-1 flex flex-col justify-between relative">
                       <div className="absolute top-0 right-8 w-16 h-16 bg-blue-50 rounded-full blur-2xl -z-10 group-hover:bg-blue-100 transition-colors"></div>
                       <div>
-                        <div className="flex items-center gap-2 mb-3">
+                        <div className="flex flex-wrap items-center gap-1.5 mb-3">
                           <span className="bg-indigo-50 text-[#4d44e3] px-2.5 py-1 rounded-md font-geist text-[10px] font-bold uppercase tracking-wider border border-indigo-100">
                             {course.category || 'Training'}
                           </span>
@@ -278,6 +292,14 @@ export default function CoursesPage() {
                           <span className="font-geist text-xs text-slate-500 font-semibold">
                             {course.difficulty || 'Beginner'}
                           </span>
+                          {Array.isArray(course.targetAudience) && course.targetAudience.length > 0 && (
+                            <>
+                              <span className="text-slate-300">•</span>
+                              <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase border border-emerald-100">
+                                {course.targetAudience.join(', ')}
+                              </span>
+                            </>
+                          )}
                         </div>
 
                         <h3 className="font-geist text-xl font-extrabold text-slate-900 mb-2 leading-tight group-hover:text-[#4d44e3] transition-colors line-clamp-2">
