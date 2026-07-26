@@ -27,11 +27,13 @@ export default function CertificatesPage() {
   // Data States
   const [myCertificates, setMyCertificates] = useState<any[]>([]);
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
+  const [allCertificates, setAllCertificates] = useState<any[]>([]);
   const [completedEnrollments, setCompletedEnrollments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Tab state for Admin View
   const [activeTab, setActiveTab] = useState<'my-certificates' | 'admin-approvals'>('my-certificates');
+  const [adminSubTab, setAdminSubTab] = useState<'pending' | 'approved' | 'rejected'>('pending');
 
   // Request & Action States
   const [requestingId, setRequestingId] = useState<string | null>(null);
@@ -70,8 +72,12 @@ export default function CertificatesPage() {
       const userStr = localStorage.getItem('lms_user');
       const user = userStr ? JSON.parse(userStr) : null;
       if (user?.role === 'ADMIN') {
-        const pendingRes = await apiClient.get('/certificates/pending-requests');
+        const [pendingRes, allRes] = await Promise.all([
+          apiClient.get('/certificates/requests').catch(() => apiClient.get('/certificates/pending-requests')),
+          apiClient.get('/certificates/all').catch(() => ({ data: [] })),
+        ]);
         setPendingRequests(pendingRes.data || []);
+        setAllCertificates(allRes.data || []);
       }
     } catch (err) {
       console.warn('Failed to load certificates data:', err);
@@ -217,7 +223,7 @@ export default function CertificatesPage() {
                   : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
               }`}
             >
-              <FileCheck className="w-4 h-4" /> Pending Approvals
+              <FileCheck className="w-4 h-4" /> Admin Management
               {pendingRequests.length > 0 && (
                 <span className="px-2 py-0.5 bg-rose-500 text-white rounded-full text-[10px] shadow-sm ml-1">
                   {pendingRequests.length}
@@ -392,56 +398,186 @@ export default function CertificatesPage() {
       {/* Admin Approvals Tab */}
       {isAdmin && activeTab === 'admin-approvals' && (
         <div className="space-y-8">
-          <h2 className="font-geist text-2xl font-extrabold text-slate-900 flex items-center gap-3">
-            <FileCheck className="w-6 h-6 text-[#4d44e3]" />
-            Pending Learner Requests
-            <span className="bg-[#4d44e3] text-white text-sm px-3 py-1 rounded-full">{pendingRequests.length}</span>
-          </h2>
-
-          {pendingRequests.length > 0 ? (
-            <div className="space-y-4">
-              {pendingRequests.map((cert) => (
-                <div
-                  key={cert.id}
-                  className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/40 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:border-indigo-100 transition-colors"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-[#4d44e3] border border-indigo-100 flex items-center justify-center font-geist font-extrabold text-lg shrink-0">
-                      {cert.user?.name ? cert.user.name.charAt(0).toUpperCase() : 'U'}
-                    </div>
-                    <div>
-                      <h4 className="font-geist text-base font-extrabold text-slate-900">{cert.user?.name}</h4>
-                      <p className="font-inter text-sm text-slate-500 mt-1">
-                        Requested for: <span className="font-semibold text-slate-700">{cert.course?.title}</span>
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 w-full md:w-auto">
-                    <button
-                      onClick={() => handleApproveRequest(cert.id)}
-                      className="flex-1 md:flex-none px-6 py-3 bg-emerald-500 text-white font-bold text-sm rounded-xl hover:bg-emerald-600 hover:shadow-lg hover:shadow-emerald-200 transition-all text-center"
-                    >
-                      Approve & Issue
-                    </button>
-                    <button
-                      onClick={() => handleRejectRequest(cert.id)}
-                      className="flex-1 md:flex-none px-6 py-3 bg-white border border-rose-200 text-rose-600 font-bold text-sm rounded-xl hover:bg-rose-50 transition-colors text-center"
-                    >
-                      Reject
-                    </button>
-                  </div>
-                </div>
-              ))}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-6">
+            <h2 className="font-geist text-2xl font-extrabold text-slate-900 flex items-center gap-3">
+              <FileCheck className="w-6 h-6 text-[#4d44e3]" />
+              Certificate Administration
+            </h2>
+            <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/60 self-start sm:self-auto">
+              <button
+                onClick={() => setAdminSubTab('pending')}
+                className={`px-4 py-2 rounded-lg font-bold text-xs transition-all cursor-pointer ${
+                  adminSubTab === 'pending'
+                    ? 'bg-white text-[#4d44e3] shadow-sm border border-slate-100'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                Pending ({pendingRequests.length})
+              </button>
+              <button
+                onClick={() => setAdminSubTab('approved')}
+                className={`px-4 py-2 rounded-lg font-bold text-xs transition-all cursor-pointer ${
+                  adminSubTab === 'approved'
+                    ? 'bg-white text-emerald-600 shadow-sm border border-slate-100'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                Approved ({allCertificates.filter(c => c.status === 'APPROVED').length})
+              </button>
+              <button
+                onClick={() => setAdminSubTab('rejected')}
+                className={`px-4 py-2 rounded-lg font-bold text-xs transition-all cursor-pointer ${
+                  adminSubTab === 'rejected'
+                    ? 'bg-white text-rose-600 shadow-sm border border-slate-100'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                Rejected ({allCertificates.filter(c => c.status === 'REJECTED').length})
+              </button>
             </div>
-          ) : (
-            <div className="bg-white p-16 rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/40 text-center space-y-4">
-              <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle2 className="w-10 h-10 text-emerald-400" />
+          </div>
+
+          {adminSubTab === 'pending' && (
+            pendingRequests.length > 0 ? (
+              <div className="space-y-4">
+                {pendingRequests.map((cert) => (
+                  <div
+                    key={cert.id}
+                    className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/40 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:border-indigo-100 transition-colors"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-[#4d44e3] border border-indigo-100 flex items-center justify-center font-geist font-extrabold text-lg shrink-0">
+                        {cert.user?.name ? cert.user.name.charAt(0).toUpperCase() : 'U'}
+                      </div>
+                      <div>
+                        <h4 className="font-geist text-base font-extrabold text-slate-900">{cert.user?.name} ({cert.user?.email})</h4>
+                        <p className="font-inter text-sm text-slate-500 mt-1">
+                          Requested for: <span className="font-semibold text-slate-700">{cert.course?.title || cert.enrollment?.course?.title}</span>
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 w-full md:w-auto">
+                      <button
+                        onClick={() => handleApproveRequest(cert.id)}
+                        className="flex-1 md:flex-none px-6 py-3 bg-emerald-500 text-white font-bold text-sm rounded-xl hover:bg-emerald-600 hover:shadow-lg hover:shadow-emerald-200 transition-all text-center cursor-pointer"
+                      >
+                        Approve & Issue
+                      </button>
+                      <button
+                        onClick={() => handleRejectRequest(cert.id)}
+                        className="flex-1 md:flex-none px-6 py-3 bg-white border border-rose-200 text-rose-600 font-bold text-sm rounded-xl hover:bg-rose-50 transition-colors text-center cursor-pointer"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <p className="font-geist text-xl font-extrabold text-slate-900">All Caught Up!</p>
-              <p className="font-inter text-sm text-slate-500">There are no pending certificate requests to review.</p>
-            </div>
+            ) : (
+              <div className="bg-white p-16 rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/40 text-center space-y-4">
+                <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle2 className="w-10 h-10 text-emerald-400" />
+                </div>
+                <p className="font-geist text-xl font-extrabold text-slate-900">All Caught Up!</p>
+                <p className="font-inter text-sm text-slate-500">There are no pending certificate requests to review.</p>
+              </div>
+            )
+          )}
+
+          {adminSubTab === 'approved' && (
+            (() => {
+              const approvedCerts = allCertificates.filter(c => c.status === 'APPROVED');
+              return approvedCerts.length > 0 ? (
+                <div className="space-y-4">
+                  {approvedCerts.map((cert) => (
+                    <div
+                      key={cert.id}
+                      className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/40 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:border-emerald-100 transition-colors"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center font-geist font-extrabold text-lg shrink-0">
+                          <CheckCircle2 className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-geist text-base font-extrabold text-slate-900">{cert.user?.name || cert.enrollment?.user?.name}</h4>
+                            <span className="font-mono text-xs px-2 py-0.5 bg-slate-100 rounded text-slate-600">{cert.certificateCode}</span>
+                          </div>
+                          <p className="font-inter text-sm text-slate-500 mt-1">
+                            Course: <span className="font-semibold text-slate-700">{cert.course?.title || cert.enrollment?.course?.title}</span> • Issued: {new Date(cert.issuedAt || cert.createdAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 w-full md:w-auto">
+                        <button
+                          onClick={() => handleDownloadPDF(cert.id, cert.course?.title || 'Certificate')}
+                          className="flex-1 md:flex-none px-6 py-3 bg-gradient-to-r from-[#4d44e3] to-[#8079ff] text-white font-bold text-sm rounded-xl hover:shadow-lg hover:shadow-indigo-200 transition-all text-center flex items-center justify-center gap-2 cursor-pointer"
+                        >
+                          <Download className="w-4 h-4" /> Download PDF
+                        </button>
+                        <button
+                          onClick={() => setVerifyModalCert(cert)}
+                          className="px-4 py-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-sm rounded-xl transition-all cursor-pointer"
+                        >
+                          Verify
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-white p-16 rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/40 text-center space-y-4">
+                  <p className="font-geist text-xl font-extrabold text-slate-900">No Approved Certificates Found</p>
+                  <p className="font-inter text-sm text-slate-500">No certificates have been issued yet.</p>
+                </div>
+              );
+            })()
+          )}
+
+          {adminSubTab === 'rejected' && (
+            (() => {
+              const rejectedCerts = allCertificates.filter(c => c.status === 'REJECTED');
+              return rejectedCerts.length > 0 ? (
+                <div className="space-y-4">
+                  {rejectedCerts.map((cert) => (
+                    <div
+                      key={cert.id}
+                      className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/40 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:border-rose-100 transition-colors opacity-80"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 border border-rose-100 flex items-center justify-center font-geist font-extrabold text-lg shrink-0">
+                          <XCircle className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <h4 className="font-geist text-base font-extrabold text-slate-900">{cert.user?.name || cert.enrollment?.user?.name}</h4>
+                          <p className="font-inter text-sm text-slate-500 mt-1">
+                            Course: <span className="font-semibold text-slate-700">{cert.course?.title || cert.enrollment?.course?.title}</span>
+                          </p>
+                          {cert.rejectionReason && (
+                            <p className="font-inter text-xs text-rose-600 mt-1 font-medium bg-rose-50 px-3 py-1 rounded-lg inline-block border border-rose-100">
+                              Reason: {cert.rejectionReason}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 w-full md:w-auto">
+                        <span className="font-geist font-bold text-xs text-slate-400">
+                          Rejected on {new Date(cert.updatedAt || cert.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-white p-16 rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/40 text-center space-y-4">
+                  <p className="font-geist text-xl font-extrabold text-slate-900">No Rejected Requests</p>
+                  <p className="font-inter text-sm text-slate-500">No certificate requests have been rejected.</p>
+                </div>
+              );
+            })()
           )}
         </div>
       )}

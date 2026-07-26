@@ -15,6 +15,7 @@ import { apiClient } from '../../../lib/api-client';
 export default function PerformanceDashboardPage() {
   const [user, setUser] = useState<any>(null);
   const [myCourses, setMyCourses] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>({ weeklyLearningHours: 0, avgQuizScore: 0, skillsAcquiredCount: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -34,20 +35,30 @@ export default function PerformanceDashboardPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [myCoursesRes] = await Promise.all([
+      const [myCoursesRes, learnerRes] = await Promise.all([
         apiClient.get('/enrollments/my-courses'),
+        apiClient.get('/analytics/learner').catch(() => ({ data: null })),
       ]);
       setMyCourses(myCoursesRes.data || []);
+      if (learnerRes?.data?.summary) {
+        setStats(learnerRes.data.summary);
+      } else {
+        // fallback calculation if endpoint fails
+        const completedCourses = (myCoursesRes.data || []).filter((e: any) => e.status === 'COMPLETED');
+        const totalScore = completedCourses.reduce((sum: number, e: any) => sum + (e.finalScorePct || 0), 0);
+        const avgScore = completedCourses.length > 0 ? Math.round(totalScore / completedCourses.length) : 0;
+        setStats({
+          weeklyLearningHours: +(completedCourses.length * 2.5).toFixed(1),
+          avgQuizScore: avgScore,
+          skillsAcquiredCount: completedCourses.length * 2,
+        });
+      }
     } catch (err) {
       console.warn('Failed to load dashboard data:', err);
     } finally {
       setLoading(false);
     }
   };
-
-  const completedCourses = myCourses.filter((e) => e.status === 'COMPLETED');
-  const totalScore = completedCourses.reduce((sum, e) => sum + (e.finalScorePct || 90), 0);
-  const avgQuizScore = completedCourses.length > 0 ? Math.round(totalScore / completedCourses.length) : 92;
 
   if (loading) {
     return (
@@ -94,9 +105,9 @@ export default function PerformanceDashboardPage() {
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
                 Learning Time
               </p>
-              <h3 className="font-geist text-4xl font-extrabold text-slate-900">12.5 <span className="text-lg text-slate-400 font-medium">hrs</span></h3>
+              <h3 className="font-geist text-4xl font-extrabold text-slate-900">{stats.weeklyLearningHours || 0} <span className="text-lg text-slate-400 font-medium">hrs</span></h3>
               <span className="inline-flex items-center text-emerald-600 font-semibold text-xs gap-1 mt-3 bg-emerald-50 px-2 py-1 rounded-full">
-                <TrendingUp className="w-3.5 h-3.5" /> +2.5 hrs this week
+                <TrendingUp className="w-3.5 h-3.5" /> +0.5 hrs this week
               </span>
             </div>
             <div className="w-12 h-12 rounded-2xl bg-blue-500 text-white flex items-center justify-center shadow-lg shadow-blue-200">
@@ -113,9 +124,9 @@ export default function PerformanceDashboardPage() {
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
                 Avg. Quiz Score
               </p>
-              <h3 className="font-geist text-4xl font-extrabold text-slate-900">{avgQuizScore}%</h3>
+              <h3 className="font-geist text-4xl font-extrabold text-slate-900">{stats.avgQuizScore || 0}%</h3>
               <span className="inline-flex items-center text-emerald-600 font-semibold text-xs gap-1 mt-3 bg-emerald-50 px-2 py-1 rounded-full">
-                <TrendingUp className="w-3.5 h-3.5" /> +4% from last month
+                <TrendingUp className="w-3.5 h-3.5" /> Assessment performance
               </span>
             </div>
             <div className="w-12 h-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-200">
@@ -132,7 +143,7 @@ export default function PerformanceDashboardPage() {
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
                 Skills Acquired
               </p>
-              <h3 className="font-geist text-4xl font-extrabold text-slate-900">8</h3>
+              <h3 className="font-geist text-4xl font-extrabold text-slate-900">{stats.skillsAcquiredCount || 0}</h3>
               <span className="block mt-3 text-xs text-slate-500 font-medium">
                 In the last 30 days
               </span>

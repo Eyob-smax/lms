@@ -17,6 +17,7 @@ import {
   FileText,
   ShieldCheck,
 } from 'lucide-react';
+import Swal from 'sweetalert2';
 import { apiClient } from '../../../../lib/api-client';
 
 export default function QuizPlayerPage({ params }: { params: Promise<{ id: string }> }) {
@@ -76,10 +77,10 @@ export default function QuizPlayerPage({ params }: { params: Promise<{ id: strin
     }
   };
 
-  const handleSelectOption = (questionId: string, optionIndex: number) => {
+  const handleSelectOption = (questionId: string, optionIndex: number, optionId?: string, optionText?: string) => {
     setAnswers((prev) => ({
       ...prev,
-      [questionId]: optionIndex,
+      [questionId]: { index: optionIndex, id: optionId, text: optionText },
     }));
   };
 
@@ -90,19 +91,73 @@ export default function QuizPlayerPage({ params }: { params: Promise<{ id: strin
     }));
   };
 
+  const handleRequestCertificate = async (enrId?: string) => {
+    const targetEnrId = enrId || attemptResult?.attempt?.enrollmentId || enrollmentId;
+    try {
+      await apiClient.post('/certificates/request', {
+        enrollmentId: targetEnrId,
+        courseId: quiz?.courseId,
+      });
+      Swal.fire({
+        title: '🎓 Certificate Requested!',
+        text: 'Your official certificate request has been submitted for admin review and PDF generation.',
+        icon: 'success',
+        confirmButtonColor: '#4d44e3',
+        customClass: { popup: 'rounded-3xl shadow-xl font-inter' }
+      }).then(() => {
+        router.push('/certificates');
+      });
+    } catch (err: any) {
+      Swal.fire({
+        title: 'Certificate Request',
+        text: err?.response?.data?.message || 'Your certificate request has been recorded.',
+        icon: 'info',
+        confirmButtonColor: '#4d44e3',
+        customClass: { popup: 'rounded-3xl shadow-xl font-inter' }
+      }).then(() => {
+        router.push('/certificates');
+      });
+    }
+  };
+
   const handleSubmitQuiz = async () => {
     if (submitting || !quiz) return;
+
+    const questions = quiz.questions || [];
+    const unanswered = questions.filter((q: any) => !answers[q.id]);
+    if (unanswered.length > 0) {
+      Swal.fire({
+        title: 'Incomplete Assessment',
+        text: `Please answer all required questions before submitting. You have ${unanswered.length} unanswered question${unanswered.length > 1 ? 's' : ''}.`,
+        icon: 'warning',
+        confirmButtonColor: '#4d44e3',
+        customClass: { popup: 'rounded-3xl shadow-xl font-inter', confirmButton: 'rounded-xl px-6 py-3 font-semibold' }
+      });
+      return;
+    }
+
     setSubmitting(true);
 
     try {
-      // Format answers payload
-      const formattedAnswers = Object.keys(answers).map((qId) => ({
-        questionId: qId,
-        selectedOptionIndex: typeof answers[qId] === 'number' ? answers[qId] : undefined,
-        textAnswer: typeof answers[qId] === 'string' ? answers[qId] : undefined,
-      }));
+      const formattedAnswers = questions.map((q: any) => {
+        const val = answers[q.id];
+        if (typeof val === 'object' && val !== null) {
+          return {
+            questionId: q.id,
+            selectedOptionId: val.id,
+            selectedOptionIndex: val.index,
+            shortAnswerText: val.text,
+          };
+        }
+        return {
+          questionId: q.id,
+          selectedOptionId: typeof val === 'string' && val.includes('-') ? val : undefined,
+          selectedOptionIndex: typeof val === 'number' ? val : undefined,
+          shortAnswerText: typeof val === 'string' ? val : undefined,
+        };
+      });
 
-      const submitRes = await apiClient.post('/quizzes/submit', {
+      const submitRes = await apiClient.post(`/quizzes/${quizId}/submit`, {
         quizId,
         enrollmentId: enrollmentId || undefined,
         answers: formattedAnswers,
@@ -111,13 +166,39 @@ export default function QuizPlayerPage({ params }: { params: Promise<{ id: strin
       const result = submitRes.data;
       setAttemptResult(result);
 
-      // Fetch detailed attempt breakdown & missed questions analysis
       if (result.attemptId) {
-        const breakdownRes = await apiClient.get(`/quizzes/attempts/${result.attemptId}`);
-        setAttemptBreakdown(breakdownRes.data);
+        const breakdownRes = await apiClient.get(`/quizzes/attempts/${result.attemptId}`).catch(() => ({ data: null }));
+        if (breakdownRes.data) {
+          setAttemptBreakdown(breakdownRes.data);
+        }
       }
-    } catch (err) {
+
+      if (result.isPassed || result.passed) {
+        Swal.fire({
+          title: '🎉 Assessment Passed!',
+          text: `Congratulations! You scored ${result.scorePct}%. Would you like to request your official certification now?`,
+          icon: 'success',
+          showCancelButton: true,
+          confirmButtonColor: '#10b981',
+          cancelButtonColor: '#94a3b8',
+          confirmButtonText: 'Yes, Request Certificate!',
+          cancelButtonText: 'Later',
+          customClass: { popup: 'rounded-3xl shadow-xl font-inter', confirmButton: 'rounded-xl px-6 py-3 font-semibold', cancelButton: 'rounded-xl px-6 py-3 font-semibold' }
+        }).then((res) => {
+          if (res.isConfirmed) {
+            handleRequestCertificate(result.attempt?.enrollmentId);
+          }
+        });
+      }
+    } catch (err: any) {
       console.error('Quiz submission error:', err);
+      Swal.fire({
+        title: 'Submission Failed',
+        text: err?.response?.data?.message || 'An error occurred while submitting your answers. Please try again.',
+        icon: 'error',
+        confirmButtonColor: '#e11d48',
+        customClass: { popup: 'rounded-3xl shadow-xl font-inter' }
+      });
     } finally {
       setSubmitting(false);
     }
@@ -226,16 +307,18 @@ export default function QuizPlayerPage({ params }: { params: Promise<{ id: strin
                   </div>
 
                   {/* MCQ & True/False Options */}
-                  {(q.questionType === 'MULTIPLE_CHOICE' || q.questionType === 'TRUE_FALSE') && (
+                  {(q.questionType === 'MULTIPLE_CHOICE' || q.questionType === 'TRUE_FALSE' || q.questionType === 'MCQ') && (
                     <div className="space-y-3 pl-12">
-                      {q.options?.map((optionText: string, oIdx: number) => {
-                        const isChecked = selectedOpt === oIdx;
+                      {q.options?.map((opt: any, oIdx: number) => {
+                        const optionText = typeof opt === 'string' ? opt : opt?.optionText || `Option ${oIdx + 1}`;
+                        const optionId = typeof opt === 'object' && opt?.id ? opt.id : undefined;
+                        const isChecked = selectedOpt?.index === oIdx || selectedOpt?.id === optionId || selectedOpt === oIdx || selectedOpt === optionId;
 
                         return (
                           <button
                             key={oIdx}
                             type="button"
-                            onClick={() => handleSelectOption(q.id, oIdx)}
+                            onClick={() => handleSelectOption(q.id, oIdx, optionId, optionText)}
                             className={`w-full flex items-center gap-4 p-4 rounded-xl text-left font-inter text-sm transition-all duration-200 cursor-pointer border ${
                               isChecked
                                 ? 'bg-indigo-50 border-[#4d44e3] shadow-md ring-1 ring-[#4d44e3]'
@@ -261,7 +344,7 @@ export default function QuizPlayerPage({ params }: { params: Promise<{ id: strin
                     <div className="pl-12">
                       <textarea
                         rows={4}
-                        value={selectedOpt || ''}
+                        value={typeof selectedOpt === 'string' ? selectedOpt : (selectedOpt?.text || '')}
                         onChange={(e) => handleTextAnswer(q.id, e.target.value)}
                         placeholder="Type your detailed response here..."
                         className="w-full bg-white border border-slate-200 rounded-xl font-inter text-sm text-slate-900 p-4 shadow-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all resize-y"
@@ -291,22 +374,22 @@ export default function QuizPlayerPage({ params }: { params: Promise<{ id: strin
           {/* Result Banner Card */}
           <div
             className={`p-10 rounded-3xl border shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-8 relative overflow-hidden ${
-              attemptResult.passed
+              attemptResult.passed || attemptResult.isPassed
                 ? 'bg-emerald-50/80 border-emerald-100'
                 : 'bg-rose-50/80 border-rose-100'
             }`}
           >
-            <div className={`absolute top-0 right-0 w-64 h-64 rounded-full blur-3xl opacity-50 pointer-events-none ${attemptResult.passed ? 'bg-emerald-200' : 'bg-rose-200'}`}></div>
+            <div className={`absolute top-0 right-0 w-64 h-64 rounded-full blur-3xl opacity-50 pointer-events-none ${attemptResult.passed || attemptResult.isPassed ? 'bg-emerald-200' : 'bg-rose-200'}`}></div>
 
             <div className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left relative z-10">
               <div
                 className={`w-20 h-20 rounded-2xl flex items-center justify-center shrink-0 shadow-lg border ${
-                  attemptResult.passed
+                  attemptResult.passed || attemptResult.isPassed
                     ? 'bg-gradient-to-br from-emerald-400 to-emerald-600 text-white border-emerald-500'
                     : 'bg-gradient-to-br from-rose-400 to-rose-600 text-white border-rose-500'
                 }`}
               >
-                {attemptResult.passed ? (
+                {attemptResult.passed || attemptResult.isPassed ? (
                   <CheckCircle2 className="w-10 h-10" />
                 ) : (
                   <XCircle className="w-10 h-10" />
@@ -314,26 +397,27 @@ export default function QuizPlayerPage({ params }: { params: Promise<{ id: strin
               </div>
 
               <div>
-                <span className={`font-geist text-[11px] font-extrabold uppercase tracking-widest px-3 py-1 rounded-full ${attemptResult.passed ? 'bg-emerald-200/50 text-emerald-800' : 'bg-rose-200/50 text-rose-800'}`}>
-                  {attemptResult.passed ? 'Assessment Passed' : 'Retake Required'}
+                <span className={`font-geist text-[11px] font-extrabold uppercase tracking-widest px-3 py-1 rounded-full ${attemptResult.passed || attemptResult.isPassed ? 'bg-emerald-200/50 text-emerald-800' : 'bg-rose-200/50 text-rose-800'}`}>
+                  {attemptResult.passed || attemptResult.isPassed ? 'Assessment Passed' : 'Retake Required'}
                 </span>
-                <h2 className={`font-geist text-4xl font-extrabold mt-3 ${attemptResult.passed ? 'text-emerald-900' : 'text-rose-900'}`}>
+                <h2 className={`font-geist text-4xl font-extrabold mt-3 ${attemptResult.passed || attemptResult.isPassed ? 'text-emerald-900' : 'text-rose-900'}`}>
                   Final Score: {attemptResult.scorePct}%
                 </h2>
-                <p className={`font-inter text-sm mt-2 font-medium ${attemptResult.passed ? 'text-emerald-700' : 'text-rose-700'}`}>
+                <p className={`font-inter text-sm mt-2 font-medium ${attemptResult.passed || attemptResult.isPassed ? 'text-emerald-700' : 'text-rose-700'}`}>
                   Required passing threshold: {quiz.passingScorePct}%
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-3 relative z-10 w-full sm:w-auto">
-              {attemptResult.passed ? (
-                <Link
-                  href="/certificates"
-                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 bg-emerald-600 text-white font-geist font-extrabold text-sm rounded-xl hover:bg-emerald-700 shadow-xl hover:shadow-emerald-200 transition-all"
+              {attemptResult.passed || attemptResult.isPassed ? (
+                <button
+                  type="button"
+                  onClick={() => handleRequestCertificate(attemptResult.attempt?.enrollmentId)}
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 bg-emerald-600 text-white font-geist font-extrabold text-sm rounded-xl hover:bg-emerald-700 shadow-xl hover:shadow-emerald-200 transition-all cursor-pointer"
                 >
                   <Award className="w-5 h-5" /> Request Certificate
-                </Link>
+                </button>
               ) : (
                 <button
                   onClick={() => {

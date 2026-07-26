@@ -1,14 +1,17 @@
 import { Type } from 'class-transformer';
-import { IsArray, IsNotEmpty, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { IsArray, IsNumber, IsOptional, IsString, ValidateNested } from 'class-validator';
 
 export class AnswerInputDto {
   @IsString()
-  @IsNotEmpty()
   questionId: string;
 
   @IsString()
   @IsOptional()
   selectedOptionId?: string;
+
+  @IsNumber()
+  @IsOptional()
+  selectedOptionIndex?: number;
 
   @IsString()
   @IsOptional()
@@ -17,8 +20,12 @@ export class AnswerInputDto {
 
 export class SubmitQuizAttemptDto {
   @IsString()
-  @IsNotEmpty({ message: 'Enrollment ID is required' })
-  enrollmentId: string;
+  @IsOptional()
+  enrollmentId?: string;
+
+  @IsString()
+  @IsOptional()
+  quizId?: string;
 
   @IsArray()
   @ValidateNested({ each: true })

@@ -453,8 +453,45 @@ export default function AICourseBuilderPage() {
                               <h4 className="font-geist text-sm font-bold text-slate-200">
                                 Lesson {lIdx + 1}: {les.title} <span className="text-slate-500 font-medium ml-2">({les.durationMinutes}m)</span>
                               </h4>
-                              <div className="font-inter text-sm text-slate-400 bg-slate-950 p-4 rounded-lg font-mono whitespace-pre-wrap">
-                                <ReactMarkdown>{les.content || ''}</ReactMarkdown>
+                              <div className="font-inter text-sm text-slate-300 bg-slate-950 p-6 rounded-xl border border-slate-800 leading-relaxed space-y-4">
+                                <ReactMarkdown
+                                  components={{
+                                    h1: ({ children }) => <h1 className="font-geist text-2xl font-extrabold text-white mb-4 mt-6">{children}</h1>,
+                                    h2: ({ children }) => <h2 className="font-geist text-xl font-bold text-slate-100 mt-6 mb-3">{children}</h2>,
+                                    h3: ({ children }) => <h3 className="font-geist text-lg font-bold text-slate-200 mt-4 mb-2">{children}</h3>,
+                                    p: ({ children }) => <p className="mb-4 text-slate-300 text-sm leading-relaxed">{children}</p>,
+                                    ul: ({ children }) => <ul className="list-disc pl-6 mb-4 space-y-1.5 text-slate-300 text-sm">{children}</ul>,
+                                    ol: ({ children }) => <ol className="list-decimal pl-6 mb-4 space-y-1.5 text-slate-300 text-sm">{children}</ol>,
+                                    li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+                                    blockquote: ({ children }) => (
+                                      <blockquote className="border-l-4 border-[#4d44e3] pl-4 py-2 my-4 bg-indigo-950/30 text-indigo-200 rounded-r-xl italic text-sm font-medium">
+                                        {children}
+                                      </blockquote>
+                                    ),
+                                    code: ({ children }) => (
+                                      <code className="bg-slate-800 px-1.5 py-0.5 rounded text-xs font-mono text-pink-400 border border-slate-700">
+                                        {children}
+                                      </code>
+                                    ),
+                                    pre: ({ children }) => (
+                                      <pre className="bg-slate-900 text-slate-200 p-4 rounded-xl text-xs font-mono overflow-x-auto my-4 border border-slate-800">
+                                        {children}
+                                      </pre>
+                                    ),
+                                    table: ({ children }) => (
+                                      <div className="overflow-x-auto my-4 border border-slate-800 rounded-xl">
+                                        <table className="w-full text-left border-collapse text-xs">{children}</table>
+                                      </div>
+                                    ),
+                                    thead: ({ children }) => <thead className="bg-slate-800 text-slate-300 uppercase font-geist font-bold">{children}</thead>,
+                                    th: ({ children }) => <th className="p-3 border-b border-slate-700">{children}</th>,
+                                    tbody: ({ children }) => <tbody className="divide-y divide-slate-800">{children}</tbody>,
+                                    tr: ({ children }) => <tr className="hover:bg-slate-800/50 transition-colors">{children}</tr>,
+                                    td: ({ children }) => <td className="p-3 text-slate-300">{children}</td>,
+                                  }}
+                                >
+                                  {les.content || ''}
+                                </ReactMarkdown>
                               </div>
                             </div>
                           ))}

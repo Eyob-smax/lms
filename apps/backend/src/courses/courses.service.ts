@@ -1,12 +1,16 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { QueryCourseDto } from './dto/query-course.dto';
 
 @Injectable()
 export class CoursesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   async create(createCourseDto: CreateCourseDto, userId: string) {
     const year = new Date().getFullYear();
@@ -223,17 +227,30 @@ export class CoursesService {
     const course = await this.prisma.course.findUnique({ where: { id } });
     if (!course) throw new NotFoundException(`Course with ID ${id} not found`);
 
-    return this.prisma.course.update({
+    const updated = await this.prisma.course.update({
       where: { id },
       data: updateCourseDto,
     });
+
+    if (course.status !== 'PUBLISHED' && updated.status === 'PUBLISHED') {
+      await this.notificationsService
+        .adminBroadcast(
+          'New Course Published! 🚀',
+          `A new course "${updated.title}" is now available in the training catalog!`,
+          'INFO',
+          `/courses/${updated.id}`,
+        )
+        .catch((err) => console.warn('Failed to broadcast course notification:', err));
+    }
+
+    return updated;
   }
 
   async publish(id: string) {
     const course = await this.prisma.course.findUnique({ where: { id } });
     if (!course) throw new NotFoundException(`Course with ID ${id} not found`);
 
-    return this.prisma.course.update({
+    const updated = await this.prisma.course.update({
       where: { id },
       data: {
         status: 'PUBLISHED',
@@ -241,6 +258,17 @@ export class CoursesService {
         publishedAt: new Date(),
       },
     });
+
+    await this.notificationsService
+      .adminBroadcast(
+        'New Course Published! 🚀',
+        `A new course "${updated.title}" is now available in the training catalog!`,
+        'INFO',
+        `/courses/${updated.id}`,
+      )
+      .catch((err) => console.warn('Failed to broadcast course notification:', err));
+
+    return updated;
   }
 
   async unpublish(id: string) {

@@ -32,7 +32,7 @@ export default function Sidebar({ userRole = 'AGENT', isMobileOpen = false, onMo
         { label: 'AI Course Builder', href: '/admin/courses/builder', icon: Sparkles },
         { label: 'User Directory', href: '/admin/users', icon: Users },
         { label: 'Course Catalog', href: '/courses', icon: BookOpen },
-        { label: 'Certificates & Audit', href: '/certificates', icon: Award },
+        { label: 'Certificates', href: '/certificates', icon: Award },
         { label: 'My Profile', href: '/profile', icon: User },
       ]
     : [

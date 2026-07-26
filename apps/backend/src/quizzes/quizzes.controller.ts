@@ -8,6 +8,7 @@ import { SubmitQuizAttemptDto } from './dto/submit-quiz-attempt.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
 @ApiTags('Assessments & Quizzes')
 @ApiBearerAuth()
@@ -46,6 +47,13 @@ export class QuizzesController {
     return this.quizzesService.getEnrollmentAttempts(enrollmentId);
   }
 
+  @ApiOperation({ summary: 'Submit quiz attempt without URL ID parameter' })
+  @ApiResponse({ status: 200, description: 'Graded score %, pass/fail outcome, and explanations' })
+  @Post('submit')
+  async submitAttemptRoot(@Body() dto: SubmitQuizAttemptDto, @CurrentUser('id') userId: string) {
+    return this.quizzesService.submitAttempt(dto.quizId || '', dto, userId);
+  }
+
   @ApiOperation({ summary: 'Get quiz questions and configuration' })
   @ApiResponse({ status: 200, description: 'Quiz details and question list' })
   @Get(':id')
@@ -56,7 +64,7 @@ export class QuizzesController {
   @ApiOperation({ summary: 'Submit quiz attempt for auto-grading' })
   @ApiResponse({ status: 200, description: 'Graded score %, pass/fail outcome, and explanations' })
   @Post(':id/submit')
-  async submitAttempt(@Param('id') id: string, @Body() dto: SubmitQuizAttemptDto) {
-    return this.quizzesService.submitAttempt(id, dto);
+  async submitAttempt(@Param('id') id: string, @Body() dto: SubmitQuizAttemptDto, @CurrentUser('id') userId: string) {
+    return this.quizzesService.submitAttempt(id, dto, userId);
   }
 }

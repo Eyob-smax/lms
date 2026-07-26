@@ -59,6 +59,8 @@ model User {
   accounts       Account[]
   enrollments    Enrollment[]
   createdCourses Course[]     @relation("CreatedCourses")
+  certificates   Certificate[]
+  notifications  Notification[]
 }
 
 model Session {
@@ -108,8 +110,11 @@ model Course {
   department      String?      // Optional department restriction
   difficulty      String       // Beginner, Intermediate, Advanced
   durationMinutes Int
-  thumbnailUrl    String?
-  tags            String[]     @default([]) // Flexible tagging for search/filter
+  thumbnailUrl       String?
+  learningObjectives String[]     @default([])
+  prerequisites      String[]     @default([])
+  summary            String?
+  tags               String[]     @default([]) // Flexible tagging for search/filter
   isMandatory     Boolean      @default(false) // Required courses shown with badge
   status          CourseStatus @default(DRAFT)
   version         Int          @default(1)
@@ -254,6 +259,7 @@ model Certificate {
   enrollmentId    String            @unique
   enrollment      Enrollment        @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
   userId          String
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   certificateCode String            @unique
   status          CertificateStatus @default(APPROVED)
   requestedAt     DateTime?         @default(now())
@@ -264,4 +270,18 @@ model Certificate {
   pdfUrl          String?
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String   @default("INFO") // e.g. CERTIFICATE_REQUEST, CERTIFICATE_APPROVED, CERTIFICATE_REJECTED, COURSE_ASSIGNED
+  link      String?  // e.g. /admin/certificates or /certificates
+  actionUrl String?  // e.g. /admin/certificates or /certificates
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

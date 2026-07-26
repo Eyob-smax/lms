@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Swal from 'sweetalert2';
 import {
@@ -494,7 +495,12 @@ export default function AdminUsersPage() {
                           {u.name ? u.name.charAt(0).toUpperCase() : 'U'}
                         </div>
                         <div>
-                          <p className="font-geist text-sm font-bold text-slate-900">{u.name}</p>
+                          <Link
+                            href={`/admin/users/${u.id}`}
+                            className="font-geist text-sm font-bold text-slate-900 hover:text-[#4d44e3] hover:underline block"
+                          >
+                            {u.name}
+                          </Link>
                           <p className="font-inter text-xs text-slate-500">{u.email}</p>
                         </div>
                       </div>
@@ -526,16 +532,24 @@ export default function AdminUsersPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button
-                        onClick={() => handleToggleUserStatus(u.id, isActive, u.name)}
-                        className={`px-4 py-2 rounded-lg font-geist text-xs font-bold transition-all shadow-sm ${
-                          isActive
-                            ? 'bg-white border border-slate-200 text-slate-700 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200'
-                            : 'bg-white border border-slate-200 text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200'
-                        }`}
-                      >
-                        {isActive ? 'Deactivate' : 'Activate'}
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <Link
+                          href={`/admin/users/${u.id}`}
+                          className="px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-[#4d44e3] rounded-lg font-geist text-xs font-bold transition-all shadow-sm"
+                        >
+                          View Details
+                        </Link>
+                        <button
+                          onClick={() => handleToggleUserStatus(u.id, isActive, u.name)}
+                          className={`px-3 py-2 rounded-lg font-geist text-xs font-bold transition-all shadow-sm ${
+                            isActive
+                              ? 'bg-white border border-slate-200 text-slate-700 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200'
+                          : 'bg-white border border-slate-200 text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200'
+                          }`}
+                        >
+                          {isActive ? 'Deactivate' : 'Activate'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );

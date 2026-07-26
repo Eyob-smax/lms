@@ -57,6 +57,26 @@ export class CertificatesController {
     return this.certificatesService.getPendingRequests();
   }
 
+  @ApiOperation({ summary: 'Get pending certificate requests for admin approval alias' })
+  @ApiResponse({ status: 200, description: 'List of pending certificate requests' })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @Get('pending-requests')
+  getPendingRequestsAlias() {
+    return this.certificatesService.getPendingRequests();
+  }
+
+  @ApiOperation({ summary: 'Get all company certificates for admin management (Admin only)' })
+  @ApiResponse({ status: 200, description: 'List of all certificates' })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @Get('all')
+  getAllCertificates() {
+    return this.certificatesService.getAllCertificates();
+  }
+
   @ApiOperation({ summary: 'Approve and issue certificate (Admin only)' })
   @ApiResponse({ status: 200, description: 'Certificate approved and issued' })
   @ApiBearerAuth()

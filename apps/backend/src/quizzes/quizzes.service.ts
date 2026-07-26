@@ -63,19 +63,45 @@ export class QuizzesService {
     return quiz;
   }
 
-  async submitAttempt(quizId: string, dto: SubmitQuizAttemptDto) {
+  async submitAttempt(quizIdParam: string, dto: SubmitQuizAttemptDto, userId?: string) {
+    const quizId = quizIdParam || dto.quizId;
+    if (!quizId) {
+      throw new BadRequestException('Quiz ID is required');
+    }
     const quiz = await this.findQuiz(quizId);
 
-    const enrollment = await this.prisma.enrollment.findUnique({
-      where: { id: dto.enrollmentId },
-      include: { quizAttempts: true },
-    });
-
-    if (!enrollment) {
-      throw new NotFoundException(`Enrollment with ID "${dto.enrollmentId}" not found`);
+    let enrollment: any = null;
+    if (dto.enrollmentId) {
+      enrollment = await this.prisma.enrollment.findUnique({
+        where: { id: dto.enrollmentId },
+        include: { quizAttempts: true },
+      });
     }
 
-    const previousAttemptsCount = enrollment.quizAttempts.filter((a) => a.quizId === quizId).length;
+    if (!enrollment && userId && quiz.courseId) {
+      enrollment = await this.prisma.enrollment.findFirst({
+        where: { userId, courseId: quiz.courseId },
+        include: { quizAttempts: true },
+      });
+
+      if (!enrollment) {
+        enrollment = await this.prisma.enrollment.create({
+          data: {
+            userId,
+            courseId: quiz.courseId,
+            status: 'IN_PROGRESS',
+            overallProgressPct: 50,
+          },
+          include: { quizAttempts: true },
+        });
+      }
+    }
+
+    if (!enrollment) {
+      throw new NotFoundException(`Enrollment could not be resolved. Please provide enrollmentId.`);
+    }
+
+    const previousAttemptsCount = (enrollment.quizAttempts || []).filter((a: any) => a.quizId === quizId).length;
     if (previousAttemptsCount >= quiz.maxAttempts) {
       throw new BadRequestException(`Maximum attempt limit (${quiz.maxAttempts}) reached for this quiz`);
     }
@@ -98,9 +124,16 @@ export class QuizzesService {
 
       if (submittedAnswer) {
         if (question.questionType === QuestionType.MCQ || question.questionType === QuestionType.TRUE_FALSE) {
+          let selectedOptObj = undefined;
           if (submittedAnswer.selectedOptionId) {
-            const correctOption = question.options.find((opt) => opt.isCorrect);
-            if (correctOption && correctOption.id === submittedAnswer.selectedOptionId) {
+            selectedOptObj = question.options.find((opt) => opt.id === submittedAnswer.selectedOptionId);
+          }
+          if (!selectedOptObj && typeof submittedAnswer.selectedOptionIndex === 'number') {
+            selectedOptObj = question.options[submittedAnswer.selectedOptionIndex];
+          }
+          if (selectedOptObj) {
+            submittedAnswer.selectedOptionId = selectedOptObj.id;
+            if (selectedOptObj.isCorrect) {
               isCorrect = true;
             }
           }
@@ -131,47 +164,52 @@ export class QuizzesService {
     const scorePct = totalPossiblePoints > 0 ? Math.round((totalPointsEarned / totalPossiblePoints) * 100) : 0;
     const isPassed = scorePct >= quiz.passingScorePct;
 
-    const attempt = await this.prisma.quizAttempt.create({
-      data: {
-        enrollmentId: dto.enrollmentId,
-        quizId,
-        scorePct,
-        isPassed,
-        completedAt: new Date(),
-        answers: {
-          create: gradedAnswers.map((ans) => ({
-            questionId: ans.questionId,
-            selectedOptionId: ans.selectedOptionId,
-            shortAnswerText: ans.shortAnswerText,
-            isCorrect: ans.isCorrect,
-          })),
-        },
-      },
-      include: {
-        answers: {
-          include: { question: true, selectedOption: true },
-        },
-      },
-    });
-
-    if (isPassed) {
-      await this.prisma.enrollment.update({
-        where: { id: dto.enrollmentId },
+    const attempt = await this.prisma.$transaction(async (tx) => {
+      const createdAttempt = await tx.quizAttempt.create({
         data: {
-          overallProgressPct: 100,
-          status: 'COMPLETED',
-          finalScorePct: scorePct,
+          enrollmentId: enrollment.id,
+          quizId,
+          scorePct,
+          isPassed,
           completedAt: new Date(),
+          answers: {
+            create: gradedAnswers.map((ans) => ({
+              questionId: ans.questionId,
+              selectedOptionId: ans.selectedOptionId,
+              shortAnswerText: ans.shortAnswerText,
+              isCorrect: ans.isCorrect,
+            })),
+          },
+        },
+        include: {
+          answers: {
+            include: { question: true, selectedOption: true },
+          },
         },
       });
-    }
+
+      if (isPassed) {
+        await tx.enrollment.update({
+          where: { id: enrollment.id },
+          data: {
+            overallProgressPct: 100,
+            status: 'COMPLETED',
+            finalScorePct: scorePct,
+            completedAt: new Date(),
+          },
+        });
+      }
+
+      return createdAttempt;
+    });
 
     return {
       attemptId: attempt.id,
       scorePct,
       passingScorePct: quiz.passingScorePct,
       isPassed,
-      attemptsRemaining: quiz.maxAttempts - (previousAttemptsCount + 1),
+      passed: isPassed,
+      attemptsRemaining: Math.max(0, quiz.maxAttempts - (previousAttemptsCount + 1)),
       attempt,
     };
   }

@@ -12,6 +12,7 @@ import { EnrollmentsModule } from '../enrollments/enrollments.module';
 import { AnalyticsModule } from '../analytics/analytics.module';
 import { CertificatesModule } from '../certificates/certificates.module';
 import { JobsModule } from '../jobs/jobs.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -34,6 +35,7 @@ import { AppService } from './app.service';
     AnalyticsModule,
     CertificatesModule,
     JobsModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

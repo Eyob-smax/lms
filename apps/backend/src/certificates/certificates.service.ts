@@ -3,11 +3,15 @@ import { CertificateStatus, EnrollmentStatus } from '@prisma/client';
 import { Response } from 'express';
 import PDFDocument from 'pdfkit';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { RequestCertificateDto } from './dto/request-certificate.dto';
 
 @Injectable()
 export class CertificatesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationsService: NotificationsService,
+  ) {}
 
   async requestCertificate(dto: RequestCertificateDto, userId: string) {
     const enrollment = await this.prisma.enrollment.findUnique({
@@ -92,13 +96,30 @@ export class CertificatesService {
     });
   }
 
+  async getAllCertificates() {
+    return this.prisma.certificate.findMany({
+      orderBy: { requestedAt: 'desc' },
+      include: {
+        enrollment: {
+          include: {
+            user: { select: { id: true, name: true, email: true, department: true } },
+            course: { select: { id: true, title: true, courseCode: true, category: true } },
+          },
+        },
+      },
+    });
+  }
+
   async approveCertificate(certificateId: string, adminUserId: string) {
-    const cert = await this.prisma.certificate.findUnique({ where: { id: certificateId } });
+    const cert = await this.prisma.certificate.findUnique({ 
+      where: { id: certificateId },
+      include: { enrollment: { include: { course: true } } }
+    });
     if (!cert) {
       throw new NotFoundException(`Certificate request with ID "${certificateId}" not found`);
     }
 
-    return this.prisma.certificate.update({
+    const updated = await this.prisma.certificate.update({
       where: { id: certificateId },
       data: {
         status: CertificateStatus.APPROVED,
@@ -115,15 +136,30 @@ export class CertificatesService {
         },
       },
     });
+
+    await this.notificationsService
+      .createNotification(
+        updated.userId,
+        'Certificate Approved! 🎉',
+        `Your certificate for "${updated.enrollment?.course?.title || 'Course'}" has been approved and issued!`,
+        'SUCCESS',
+        '/certificates',
+      )
+      .catch((err) => console.warn('Failed to send approval notification:', err));
+
+    return updated;
   }
 
   async rejectCertificate(certificateId: string, adminUserId: string, reason?: string) {
-    const cert = await this.prisma.certificate.findUnique({ where: { id: certificateId } });
+    const cert = await this.prisma.certificate.findUnique({ 
+      where: { id: certificateId },
+      include: { enrollment: { include: { course: true } } }
+    });
     if (!cert) {
       throw new NotFoundException(`Certificate request with ID "${certificateId}" not found`);
     }
 
-    return this.prisma.certificate.update({
+    const updated = await this.prisma.certificate.update({
       where: { id: certificateId },
       data: {
         status: CertificateStatus.REJECTED,
@@ -139,6 +175,18 @@ export class CertificatesService {
         },
       },
     });
+
+    await this.notificationsService
+      .createNotification(
+        updated.userId,
+        'Certificate Request Rejected',
+        `Your certificate request for "${updated.enrollment?.course?.title || 'Course'}" was not approved. Reason: ${updated.rejectionReason}`,
+        'WARNING',
+        '/certificates',
+      )
+      .catch((err) => console.warn('Failed to send rejection notification:', err));
+
+    return updated;
   }
 
   async getUserCertificates(userId: string) {
@@ -271,7 +319,7 @@ export class CertificatesService {
     doc.moveDown(1.5);
 
     // Footer Audit Info
-    const issuedDate = new Date(cert.issuedAt).toLocaleDateString('en-US', {
+    const issuedDate = new Date(cert.issuedAt || cert.createdAt).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',

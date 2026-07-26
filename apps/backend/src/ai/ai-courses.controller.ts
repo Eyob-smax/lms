@@ -42,11 +42,32 @@ export class AiCoursesController {
     );
 
     // Format response as { course, quiz } to match frontend state expectations
-    const quizObj = courseObj?.quizzes && courseObj.quizzes.length > 0 ? courseObj.quizzes[0] : null;
+    let formattedQuiz = null;
+    if (courseObj?.quizzes && courseObj.quizzes.length > 0) {
+      const rawQuiz = courseObj.quizzes[0];
+      formattedQuiz = {
+        ...rawQuiz,
+        questions: (rawQuiz.questions || []).map((q: any) => {
+          const rawOptions = q.options || [];
+          const optionsStrings = rawOptions.map((o: any) => typeof o === 'string' ? o : o.optionText || '');
+          let correctOptionIndex = rawOptions.findIndex((o: any) => o.isCorrect);
+          if (correctOptionIndex === -1) correctOptionIndex = 0;
+          return {
+            ...q,
+            rawOptions,
+            options: optionsStrings,
+            correctOptionIndex,
+            questionType: q.questionType || 'multiple_choice',
+            explanation: q.explanation || 'Review course section notes for explanation.',
+          };
+        }),
+      };
+    }
 
     return {
       course: courseObj,
-      quiz: quizObj,
+      quiz: formattedQuiz,
+      schema: courseObj?.schema,
     };
   }
 
@@ -91,8 +112,24 @@ export class AiCoursesController {
               where: { id: q.id },
               data: {
                 questionText: q.questionText,
+                explanation: q.explanation || undefined,
               },
             }).catch(() => {});
+
+            if (Array.isArray(q.options) && q.options.length > 0) {
+              await this.prisma.quizOption.deleteMany({ where: { questionId: q.id } }).catch(() => {});
+              for (let idx = 0; idx < q.options.length; idx++) {
+                const optText = typeof q.options[idx] === 'string' ? q.options[idx] : (q.options[idx]?.optionText || `Option ${idx + 1}`);
+                const isCorrect = typeof q.correctOptionIndex === 'number' ? (idx === q.correctOptionIndex) : (q.options[idx]?.isCorrect || idx === 0);
+                await this.prisma.quizOption.create({
+                  data: {
+                    questionId: q.id,
+                    optionText: optText,
+                    isCorrect,
+                  },
+                }).catch(() => {});
+              }
+            }
           }
         }
       }

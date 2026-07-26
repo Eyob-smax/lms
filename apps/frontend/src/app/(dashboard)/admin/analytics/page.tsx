@@ -155,7 +155,7 @@ export default function AdminAnalyticsPage() {
 
   const chartData = timelineData.map((d: any) => ({
     name: d.label,
-    enrollments: d.completions + Math.floor(Math.random() * 20),
+    enrollments: d.enrollments ?? d.completions,
     completions: d.completions,
   }));
 
@@ -263,7 +263,7 @@ export default function AdminAnalyticsPage() {
             </p>
             <h3 className="font-geist text-4xl font-extrabold text-slate-900">{stats.satisfactionScore || 0}%</h3>
             <p className="font-inter text-xs text-slate-500 mt-2 font-medium">
-              Based on {stats.totalUsers * 8} graded assessment attempts
+              Based on {stats.totalAttempts ?? 0} graded assessment attempts
             </p>
           </div>
         </div>

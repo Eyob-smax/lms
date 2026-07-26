@@ -150,6 +150,17 @@ export class UsersService {
     };
   }
 
+  async checkUserExists(id: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+    return user;
+  }
+
   async findOne(id: string) {
     const user = await this.prisma.user.findUnique({
       where: { id },
@@ -170,11 +181,93 @@ export class UsersService {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
 
-    return user;
+    const [enrollments, quizAttempts, certificates] = await Promise.all([
+      this.prisma.enrollment.findMany({
+        where: { userId: id },
+        orderBy: { enrolledAt: 'desc' },
+        include: {
+          course: {
+            select: {
+              id: true,
+              title: true,
+              courseCode: true,
+              category: true,
+              difficulty: true,
+              durationMinutes: true,
+            },
+          },
+        },
+      }),
+      this.prisma.quizAttempt.findMany({
+        where: { enrollment: { userId: id } },
+        orderBy: { createdAt: 'desc' },
+        include: {
+          quiz: {
+            select: { id: true, title: true, passingScore: true, courseId: true },
+          },
+          enrollment: {
+            select: {
+              course: { select: { id: true, title: true, courseCode: true } },
+            },
+          },
+        },
+      }),
+      this.prisma.certificate.findMany({
+        where: { userId: id },
+        orderBy: { requestedAt: 'desc' },
+        include: {
+          enrollment: {
+            select: {
+              course: { select: { id: true, title: true, courseCode: true } },
+            },
+          },
+        },
+      }),
+    ]);
+
+    const totalEnrolled = enrollments.length;
+    const completedCourses = enrollments.filter((e) => e.status === 'COMPLETED').length;
+    const inProgressCourses = enrollments.filter((e) => e.status === 'IN_PROGRESS').length;
+    const notStartedCourses = enrollments.filter((e) => e.status === 'NOT_STARTED').length;
+
+    const totalProgress = enrollments.reduce((sum, e) => sum + (e.overallProgressPct || 0), 0);
+    const averageProgressPct = totalEnrolled > 0 ? Math.round(totalProgress / totalEnrolled) : 0;
+
+    const totalQuizAttempts = quizAttempts.length;
+    const passedQuizzes = quizAttempts.filter((q) => q.isPassed).length;
+    const totalQuizScore = quizAttempts.reduce((sum, q) => sum + (q.scorePct || 0), 0);
+    const averageQuizScore = totalQuizAttempts > 0 ? Math.round(totalQuizScore / totalQuizAttempts) : 0;
+
+    const totalLearningMinutes = enrollments
+      .filter((e) => e.status === 'COMPLETED')
+      .reduce((sum, e) => sum + (e.course?.durationMinutes || 0), 0);
+    const totalLearningHours = +(totalLearningMinutes / 60).toFixed(1);
+
+    const completionRate = totalEnrolled > 0 ? Math.round((completedCourses / totalEnrolled) * 100) : 0;
+
+    return {
+      ...user,
+      stats: {
+        totalEnrolled,
+        completedCourses,
+        inProgressCourses,
+        notStartedCourses,
+        averageProgressPct,
+        totalCertificates: certificates.filter((c) => c.status === 'APPROVED').length,
+        totalQuizAttempts,
+        passedQuizzes,
+        averageQuizScore,
+        totalLearningHours,
+        completionRate,
+      },
+      enrollments,
+      quizAttempts,
+      certificates,
+    };
   }
 
   async updateStatus(id: string, isActive: boolean) {
-    await this.findOne(id);
+    await this.checkUserExists(id);
 
     return this.prisma.user.update({
       where: { id },
@@ -191,7 +284,7 @@ export class UsersService {
   }
 
   async updateDepartment(id: string, department: string) {
-    await this.findOne(id);
+    await this.checkUserExists(id);
 
     return this.prisma.user.update({
       where: { id },
@@ -208,7 +301,7 @@ export class UsersService {
   }
 
   async updateRole(id: string, role: Role) {
-    await this.findOne(id);
+    await this.checkUserExists(id);
 
     return this.prisma.user.update({
       where: { id },
@@ -225,7 +318,7 @@ export class UsersService {
   }
 
   async updateUser(id: string, dto: UpdateUserDto) {
-    await this.findOne(id);
+    await this.checkUserExists(id);
 
     return this.prisma.user.update({
       where: { id },
