@@ -438,7 +438,7 @@ export default function CoursesPage() {
                                 <span>Preview</span>
                               </Link>
                             </div>
-                            <div className="grid grid-cols-4 gap-1">
+                            <div className="grid grid-cols-2 gap-1.5">
                               <button
                                 onClick={() => handleTogglePublish(course)}
                                 title={course.status === 'PUBLISHED' ? 'Unpublish' : 'Publish'}
@@ -449,8 +449,10 @@ export default function CoursesPage() {
                                 }`}
                               >
                                 {course.status === 'PUBLISHED' ? <XCircle className="w-3.5 h-3.5" /> : <CheckCircle className="w-3.5 h-3.5" />}
-                                <span className="ml-1 truncate">{course.status === 'PUBLISHED' ? 'Unpub' : 'Pub'}</span>
+                                <span className="ml-1 truncate">{course.status === 'PUBLISHED' ? 'Unpublish' : 'Publish'}</span>
                               </button>
+
+                              {/* Commented out Clone button as requested
                               <button
                                 onClick={() => handleDuplicate(course.id)}
                                 title="Duplicate"
@@ -459,6 +461,9 @@ export default function CoursesPage() {
                                 <Copy className="w-3.5 h-3.5" />
                                 <span className="ml-1">Clone</span>
                               </button>
+                              */}
+
+                              {/* Commented out Archive button as requested
                               <button
                                 onClick={() => handleArchive(course.id)}
                                 title="Archive"
@@ -467,13 +472,15 @@ export default function CoursesPage() {
                                 <Archive className="w-3.5 h-3.5" />
                                 <span className="ml-1">Arch</span>
                               </button>
+                              */}
+
                               <button
                                 onClick={() => handleDelete(course.id)}
                                 title="Delete"
                                 className="flex items-center justify-center py-2 px-1 rounded-xl font-semibold text-[11px] bg-rose-50 text-rose-600 hover:bg-rose-100 transition-all border border-rose-200"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
-                                <span className="ml-1">Del</span>
+                                <span className="ml-1">Delete</span>
                               </button>
                             </div>
                           </div>
