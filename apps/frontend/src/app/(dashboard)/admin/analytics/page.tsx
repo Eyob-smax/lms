@@ -86,21 +86,39 @@ export default function AdminAnalyticsPage() {
 
     try {
       const res = await apiClient.get('/analytics/export');
-      const data = res.data;
+      const records = res.data?.data || [];
 
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      let csvContent = "User Name,User Email,Department,Course Code,Course Title,Category,Status,Progress (%),Final Score (%),Enrolled At,Completed At\n";
+      records.forEach((row: any) => {
+        const line = [
+          `"${(row.userName || '').replace(/"/g, '""')}"`,
+          `"${(row.userEmail || '').replace(/"/g, '""')}"`,
+          `"${(row.department || '').replace(/"/g, '""')}"`,
+          `"${(row.courseCode || '').replace(/"/g, '""')}"`,
+          `"${(row.courseTitle || '').replace(/"/g, '""')}"`,
+          `"${(row.category || '').replace(/"/g, '""')}"`,
+          `"${(row.status || '').replace(/"/g, '""')}"`,
+          `"${row.progressPct ?? 0}"`,
+          `"${row.finalScorePct ?? 'N/A'}"`,
+          `"${row.enrolledAt ? new Date(row.enrolledAt).toLocaleDateString() : 'N/A'}"`,
+          `"${row.completedAt && row.completedAt !== 'N/A' ? new Date(row.completedAt).toLocaleDateString() : 'N/A'}"`
+        ].join(",");
+        csvContent += line + "\n";
+      });
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `LMS_Enterprise_Training_Report_${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `LMS_BPO_QA_Review_Report_${new Date().toISOString().split('T')[0]}.csv`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
       Swal.fire({
-        title: 'Success!',
-        text: 'Analytics report generated & downloaded successfully!',
+        title: 'CSV Report Generated!',
+        text: 'The training report has been downloaded in CSV format, ready for team lead 1:1s and QA reviews!',
         icon: 'success',
         confirmButtonColor: '#4d44e3',
         customClass: {

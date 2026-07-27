@@ -15,6 +15,7 @@ import {
   UserCheck,
   UserX,
   Layers,
+  Download,
 } from 'lucide-react';
 import { apiClient } from '../../../../lib/api-client';
 
@@ -142,6 +143,43 @@ export default function AdminUsersPage() {
     } finally {
       setInviteLoading(false);
     }
+  };
+
+  const exportUsersCSV = () => {
+    let csvContent = "ID,Name,Email,Role,Department,Status,Created At\n";
+    usersList.forEach((u: any) => {
+      const line = [
+        `"${u.id || ''}"`,
+        `"${(u.name || '').replace(/"/g, '""')}"`,
+        `"${(u.email || '').replace(/"/g, '""')}"`,
+        `"${u.role || ''}"`,
+        `"${(u.department || '').replace(/"/g, '""')}"`,
+        `"${u.isActive ? 'Active' : 'Inactive'}"`,
+        `"${u.createdAt ? new Date(u.createdAt).toLocaleDateString() : ''}"`
+      ].join(",");
+      csvContent += line + "\n";
+    });
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `LMS_Agent_Roster_Export_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+
+    Swal.fire({
+      title: 'Roster CSV Exported!',
+      text: 'Agent roster downloaded successfully in CSV format.',
+      icon: 'success',
+      confirmButtonColor: '#4d44e3',
+      customClass: {
+        popup: 'rounded-3xl shadow-xl',
+        confirmButton: 'rounded-xl px-6 py-3 font-semibold'
+      }
+    });
   };
 
   const handleToggleUserStatus = async (userId: string, currentStatus: boolean, userName: string) => {
@@ -322,7 +360,16 @@ export default function AdminUsersPage() {
         </div>
 
         {/* Header Action Buttons */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={exportUsersCSV}
+            className="flex items-center gap-2 px-4 py-3 bg-white border border-slate-200 rounded-xl font-geist text-sm font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm cursor-pointer"
+            title="Export Agent Roster to CSV for 1:1 Reviews"
+          >
+            <Download className="w-4 h-4 text-emerald-600" />
+            <span className="hidden sm:inline">Export CSV</span>
+          </button>
+
           <button
             onClick={() => setShowCohortModal(true)}
             className="flex items-center gap-2 px-5 py-3 bg-white border border-slate-200 rounded-xl font-geist text-sm font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm cursor-pointer"
