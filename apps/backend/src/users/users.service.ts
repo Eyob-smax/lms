@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
+import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -17,26 +18,9 @@ export class UsersService {
   ) {}
 
   async createUser(dto: CreateUserDto) {
-    const existing = await this.prisma.user.findUnique({
-      where: { email: dto.email.toLowerCase() },
-    });
-    if (existing) {
-      throw new BadRequestException('A user account with this email address already exists.');
-    }
-
-    const tempPassword = dto.password || 'LmsPass2026!' + Math.random().toString(36).substring(2, 6);
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(tempPassword, salt);
-
-    const user = await this.prisma.user.create({
-      data: {
-        email: dto.email.toLowerCase(),
-        name: dto.name,
-        role: dto.role || Role.AGENT,
-        department: dto.department || 'General Operations',
-        passwordHash,
-        isActive: true,
-      },
+    const emailLower = dto.email.toLowerCase();
+    let user = await this.prisma.user.findUnique({
+      where: { email: emailLower },
       select: {
         id: true,
         name: true,
@@ -44,13 +28,80 @@ export class UsersService {
         role: true,
         department: true,
         isActive: true,
+        passwordHash: true,
         createdAt: true,
       },
     });
 
+    if (user) {
+      if (user.isActive && user.passwordHash) {
+        throw new BadRequestException('A user account with this email address already exists and is active.');
+      }
+      // Re-invite pending/unactivated user by updating their role/department/name if modified
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          name: dto.name || user.name,
+          role: dto.role || user.role,
+          department: dto.department || user.department,
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          department: true,
+          isActive: true,
+          passwordHash: true,
+          createdAt: true,
+        },
+      });
+    } else {
+      user = await this.prisma.user.create({
+        data: {
+          email: emailLower,
+          name: dto.name,
+          role: dto.role || Role.AGENT,
+          department: dto.department || 'General Operations',
+          passwordHash: null,
+          isActive: false,
+          emailVerified: false,
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          department: true,
+          isActive: true,
+          passwordHash: true,
+          createdAt: true,
+        },
+      });
+    }
+
+    // Generate secure 32-byte hex invitation token
+    const inviteToken = crypto.randomBytes(32).toString('hex');
+
+    // Remove old verification tokens for this email
+    await this.prisma.verification.deleteMany({
+      where: { identifier: emailLower },
+    });
+
+    await this.prisma.verification.create({
+      data: {
+        identifier: emailLower,
+        value: inviteToken,
+        expiresAt: new Date(Date.now() + 7 * 24 * 3600 * 1000), // 7 days expiry
+      },
+    });
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const inviteLink = `${frontendUrl}/accept-invite?token=${inviteToken}&email=${encodeURIComponent(user.email)}`;
+
     // Dispatch invitation email
     try {
-      await this.emailService.sendInvitationEmail(user.email, user.name, user.role, user.department, tempPassword);
+      await this.emailService.sendInvitationEmail(user.email, user.name, user.role, user.department, undefined, inviteLink);
     } catch (err) {
       console.error('Failed to dispatch invitation email:', err);
     }
@@ -58,7 +109,8 @@ export class UsersService {
     return {
       ...user,
       invited: true,
-      tempPassword, // Return tempPassword for admin confirmation popup if needed
+      inviteLink,
+      inviteToken,
     };
   }
 

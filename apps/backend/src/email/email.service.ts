@@ -92,26 +92,30 @@ export class EmailService {
     const loginUrl = inviteLink || 'http://localhost:3000/login';
     
     const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; rounded: 12px;">
-        <h2 style="color: #4d44e3;">Welcome to the LMS Production Platform</h2>
-        <p>Hello <strong>${name}</strong>,</p>
-        <p>You have been invited to join the LMS Production Platform with the following assignment:</p>
-        <ul>
-          <li><strong>Role:</strong> ${role}</li>
-          <li><strong>Department / Team:</strong> ${department || 'General Operations'}</li>
-          <li><strong>Login Email:</strong> ${toEmail}</li>
-          ${tempPassword ? `<li><strong>Temporary Password:</strong> <code>${tempPassword}</code></li>` : ''}
-        </ul>
-        <p style="margin: 24px 0;">
-          <a href="${loginUrl}" style="background-color: #4d44e3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">
-            Access LMS Platform Now
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
+        <h2 style="color: #4d44e3; margin-top: 0;">Welcome to the LMS Production Platform</h2>
+        <p style="color: #334155; font-size: 16px;">Hello <strong>${name}</strong>,</p>
+        <p style="color: #334155; font-size: 15px;">You have been invited to join the LMS Production Platform with the following assignment:</p>
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 20px 0;">
+          <ul style="margin: 0; padding-left: 20px; color: #334155;">
+            <li style="margin-bottom: 8px;"><strong>Role:</strong> ${role}</li>
+            <li style="margin-bottom: 8px;"><strong>Department / Team:</strong> ${department || 'General Operations'}</li>
+            <li style="margin-bottom: 8px;"><strong>Login Email:</strong> ${toEmail}</li>
+            ${tempPassword ? `<li><strong>Temporary Password:</strong> <code style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px;">${tempPassword}</code></li>` : ''}
+          </ul>
+        </div>
+        <p style="margin: 28px 0; text-align: center;">
+          <a href="${loginUrl}" style="background-color: #4d44e3; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; display: inline-block; box-shadow: 0 4px 6px -1px rgba(77, 68, 227, 0.2);">
+            ${inviteLink || !tempPassword ? 'Create Password & Activate Account' : 'Access LMS Platform Now'}
           </a>
         </p>
-        <p style="color: #64748b; font-size: 12px;">Please change your password immediately after completing your initial login.</p>
+        ${inviteLink ? `<p style="color: #64748b; font-size: 13px; margin-top: 24px; word-break: break-all;">If the button above does not work, copy and paste this verification link into your browser:<br/><a href="${loginUrl}" style="color: #4d44e3;">${loginUrl}</a></p>` : ''}
+        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
+        <p style="color: #94a3b8; font-size: 12px; margin: 0;">Please activate your account and set your password to begin learning.</p>
       </div>
     `;
 
-    const text = `Welcome to LMS Production Platform!\nHello ${name},\nYou have been invited to join as ${role} in ${department || 'General Operations'}.\nLogin Email: ${toEmail}\n${tempPassword ? `Temporary Password: ${tempPassword}\n` : ''}Access Platform: ${loginUrl}`;
+    const text = `Welcome to LMS Production Platform!\nHello ${name},\nYou have been invited to join as ${role} in ${department || 'General Operations'}.\nLogin Email: ${toEmail}\n${tempPassword ? `Temporary Password: ${tempPassword}\n` : ''}Activate Account: ${loginUrl}`;
 
     return this.sendEmail({
       to: toEmail,

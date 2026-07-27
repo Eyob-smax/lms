@@ -6,6 +6,7 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { AcceptInviteDto } from './dto/accept-invite.dto';
 import { EmailService } from '../email/email.service';
 
 @Injectable()
@@ -61,6 +62,10 @@ export class AuthService {
 
     if (!user) {
       throw new UnauthorizedException('Invalid email or password credentials');
+    }
+
+    if (!user.passwordHash || !user.isActive) {
+      throw new UnauthorizedException('Account pending activation. Please check your invitation email to set your password and activate your account.');
     }
 
     const isPasswordValid = await bcrypt.compare(loginDto.password, user.passwordHash);
@@ -125,11 +130,6 @@ export class AuthService {
 
   async resetPassword(resetPasswordDto: ResetPasswordDto) {
     try {
-      const payload = this.jwtService.verify(resetPasswordDto.token);
-      if (payload.purpose !== 'password_reset') {
-        throw new UnauthorizedException('Invalid reset token purpose');
-      }
-
       const verification = await this.prisma.verification.findFirst({
         where: { value: resetPasswordDto.token },
       });
@@ -138,12 +138,20 @@ export class AuthService {
         throw new UnauthorizedException('Reset token expired or invalid');
       }
 
+      const user = await this.prisma.user.findUnique({
+        where: { email: verification.identifier },
+      });
+
+      if (!user) {
+        throw new NotFoundException('User account associated with this reset token not found');
+      }
+
       const salt = await bcrypt.genSalt(10);
       const passwordHash = await bcrypt.hash(resetPasswordDto.newPassword, salt);
 
       await this.prisma.user.update({
-        where: { id: payload.sub },
-        data: { passwordHash },
+        where: { id: user.id },
+        data: { passwordHash, isActive: true },
       });
 
       await this.prisma.verification.delete({
@@ -151,9 +159,58 @@ export class AuthService {
       });
 
       return { message: 'Password reset successful. You may now sign in with your new password.' };
-    } catch {
+    } catch (err: any) {
+      if (err instanceof NotFoundException) throw err;
       throw new UnauthorizedException('Invalid or expired password reset token');
     }
+  }
+
+  async acceptInvite(dto: AcceptInviteDto) {
+    const verification = await this.prisma.verification.findFirst({
+      where: { value: dto.token },
+    });
+
+    if (!verification || verification.expiresAt < new Date()) {
+      throw new UnauthorizedException('Invitation link has expired or is invalid. Please contact your administrator.');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { email: verification.identifier.toLowerCase() },
+    });
+
+    if (!user) {
+      throw new NotFoundException('No account found for this invitation token.');
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(dto.password, salt);
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash,
+        isActive: true,
+        emailVerified: true,
+      },
+    });
+
+    await this.prisma.verification.delete({
+      where: { id: verification.id },
+    });
+
+    const token = this.generateToken(user.id, user.email, user.role);
+
+    return {
+      message: 'Account activated and password set successfully!',
+      accessToken: token,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        department: user.department,
+      },
+    };
   }
 
   private generateToken(userId: string, email: string, role: string): string {

@@ -106,14 +106,15 @@ export default function AdminUsersPage() {
       const res = await apiClient.post('/users', {
         name: newUserName,
         email: newUserEmail,
-        password: newUserPassword,
         role: newUserRole,
         department: newUserDepartment,
       });
 
       Swal.fire({
         title: 'Member Invited!',
-        html: `<p>User <strong>${newUserName}</strong> created and invitation email dispatched via LMS Email Service!</p><p class="mt-2 text-xs bg-slate-100 p-2 rounded text-slate-700">Login Email: <strong>${newUserEmail}</strong><br/>Temp Password: <code>${res.data?.tempPassword || newUserPassword}</code></p>`,
+        html: `<p>An invitation email with a secure registration link has been dispatched to <strong>${newUserName}</strong> (${newUserEmail}) via LMS Email Service!</p>` +
+              (res.data?.inviteLink ? `<div class="mt-4 p-3 bg-slate-50 border border-slate-200 rounded-xl text-left font-mono text-xs text-slate-700 break-all"><div class="font-bold text-slate-900 mb-1">Registration Link (Demo / Testing):</div><a href="${res.data.inviteLink}" target="_blank" class="text-indigo-600 hover:underline">${res.data.inviteLink}</a></div>` : '') +
+              `<p class="mt-3 text-xs text-slate-500">The user will use this link to set their own password and activate their account.</p>`,
         icon: 'success',
         confirmButtonColor: '#4d44e3',
         customClass: {
@@ -129,8 +130,8 @@ export default function AdminUsersPage() {
     } catch (err: any) {
       console.error('Failed to create user:', err);
       Swal.fire({
-        title: 'Error',
-        text: 'Failed to create user. Please check the form and try again.',
+        title: 'Invitation Failed',
+        text: err.response?.data?.message || err.message || 'Failed to create user. Please check the form and try again.',
         icon: 'error',
         confirmButtonColor: '#4d44e3',
         customClass: {
@@ -668,7 +669,7 @@ export default function AdminUsersPage() {
                   disabled={inviteLoading}
                   className="px-6 py-3 bg-[#4d44e3] text-white rounded-xl font-geist text-sm font-bold hover:bg-[#3b32d1] transition-colors shadow-lg hover:shadow-indigo-200 disabled:opacity-50"
                 >
-                  {inviteLoading ? 'Creating...' : 'Create Account'}
+                  {inviteLoading ? 'Sending Invite...' : 'Send Invitation Link'}
                 </button>
               </div>
             </form>

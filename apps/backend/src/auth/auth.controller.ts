@@ -7,6 +7,7 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { AcceptInviteDto } from './dto/accept-invite.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { auth } from './better-auth';
@@ -45,6 +46,14 @@ export class AuthController {
   @Post('reset-password')
   async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
     return this.authService.resetPassword(resetPasswordDto);
+  }
+
+  @ApiOperation({ summary: 'Accept member invitation and set initial password' })
+  @ApiResponse({ status: 200, description: 'Account activated and password set successfully with access token' })
+  @HttpCode(HttpStatus.OK)
+  @Post('accept-invite')
+  async acceptInvite(@Body() acceptInviteDto: AcceptInviteDto) {
+    return this.authService.acceptInvite(acceptInviteDto);
   }
 
   @ApiOperation({ summary: 'Get current logged-in user profile' })
