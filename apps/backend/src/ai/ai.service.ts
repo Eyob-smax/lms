@@ -605,12 +605,15 @@ Return ONLY valid JSON matching this exact schema (no markdown fences around the
           },
         });
 
-        for (const optText of qData.options) {
+        const optionsList = Array.isArray(qData.options) ? qData.options : [];
+        for (const optItem of optionsList) {
+          const optStr = typeof optItem === 'string' ? optItem : (optItem?.optionText || optItem?.text || optItem?.option || optItem?.label || optItem?.value || optItem?.answer || 'Option');
+          const isCorr = typeof optItem === 'object' && optItem?.isCorrect !== undefined ? Boolean(optItem.isCorrect) : (String(optStr).trim() === String(qData.correctAnswer || '').trim());
           await this.prisma.quizOption.create({
             data: {
               questionId: createdQuestion.id,
-              optionText: optText,
-              isCorrect: optText.trim() === qData.correctAnswer.trim(),
+              optionText: String(optStr),
+              isCorrect: isCorr,
             },
           });
         }

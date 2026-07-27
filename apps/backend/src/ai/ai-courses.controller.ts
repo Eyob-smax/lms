@@ -49,8 +49,14 @@ export class AiCoursesController {
         ...rawQuiz,
         questions: (rawQuiz.questions || []).map((q: any) => {
           const rawOptions = q.options || [];
-          const optionsStrings = rawOptions.map((o: any) => typeof o === 'string' ? o : o.optionText || '');
-          let correctOptionIndex = rawOptions.findIndex((o: any) => o.isCorrect);
+          const optionsStrings = rawOptions.map((o: any) => {
+            if (typeof o === 'string') return o;
+            if (typeof o === 'object' && o !== null) {
+              return o.optionText || o.text || o.option || o.label || o.value || o.answer || 'Option';
+            }
+            return String(o || 'Option');
+          });
+          let correctOptionIndex = rawOptions.findIndex((o: any) => typeof o === 'object' && o !== null ? o.isCorrect : false);
           if (correctOptionIndex === -1) correctOptionIndex = 0;
           return {
             ...q,
@@ -247,13 +253,14 @@ export class AiCoursesController {
             if (Array.isArray(q.options) && q.options.length > 0) {
               await this.prisma.quizOption.deleteMany({ where: { questionId: q.id } }).catch(() => {});
               for (let idx = 0; idx < q.options.length; idx++) {
-                const optText = typeof q.options[idx] === 'string' ? q.options[idx] : (q.options[idx]?.optionText || `Option ${idx + 1}`);
-                const isCorrect = typeof q.correctOptionIndex === 'number' ? (idx === q.correctOptionIndex) : (q.options[idx]?.isCorrect || idx === 0);
+                const optObj = q.options[idx];
+                const optText = typeof optObj === 'string' ? optObj : (optObj?.optionText || optObj?.text || optObj?.option || optObj?.label || optObj?.value || optObj?.answer || `Option ${idx + 1}`);
+                const isCorrect = typeof q.correctOptionIndex === 'number' ? (idx === q.correctOptionIndex) : (optObj?.isCorrect || idx === 0);
                 await this.prisma.quizOption.create({
                   data: {
                     questionId: q.id,
-                    optionText: optText,
-                    isCorrect,
+                    optionText: String(optText),
+                    isCorrect: Boolean(isCorrect),
                   },
                 }).catch(() => {});
               }

@@ -310,7 +310,7 @@ export default function QuizPlayerPage({ params }: { params: Promise<{ id: strin
                   {(q.questionType === 'MULTIPLE_CHOICE' || q.questionType === 'TRUE_FALSE' || q.questionType === 'MCQ') && (
                     <div className="space-y-3 pl-12">
                       {q.options?.map((opt: any, oIdx: number) => {
-                        const optionText = typeof opt === 'string' ? opt : opt?.optionText || `Option ${oIdx + 1}`;
+                        const optionText = typeof opt === 'string' ? opt : (opt?.optionText || opt?.text || opt?.option || opt?.label || opt?.value || opt?.answer || `Option ${oIdx + 1}`);
                         const optionId = typeof opt === 'object' && opt?.id ? opt.id : undefined;
                         const isChecked = selectedOpt?.index === oIdx || selectedOpt?.id === optionId || selectedOpt === oIdx || selectedOpt === optionId;
 

@@ -68,6 +68,40 @@ export default function AICourseBuilderPage() {
     }
   }, []);
 
+  const normalizeQuizData = (quiz: any) => {
+    if (!quiz) return { title: 'Assessment Quiz', passingScorePct: 80, questions: [] };
+    const rawQuestions = quiz.questions || [];
+    const normalizedQuestions = rawQuestions.map((q: any) => {
+      const rawOptions = q.options || q.rawOptions || [];
+      const optionsStrings = rawOptions.map((o: any, idx: number) => {
+        if (typeof o === 'string') return o;
+        if (typeof o === 'object' && o !== null) {
+          return o.optionText || o.text || o.option || o.label || o.value || o.answer || `Option ${idx + 1}`;
+        }
+        return String(o || `Option ${idx + 1}`);
+      });
+      let correctIdx = q.correctOptionIndex;
+      if (typeof correctIdx !== 'number' || correctIdx < 0) {
+        correctIdx = rawOptions.findIndex((o: any) => typeof o === 'object' && o !== null ? o.isCorrect : false);
+        if (correctIdx === -1) correctIdx = 0;
+      }
+      return {
+        ...q,
+        questionText: q.questionText || q.question || 'Assessment Question',
+        questionType: q.questionType || 'MCQ',
+        options: optionsStrings.length >= 2 ? optionsStrings : ['True', 'False'],
+        correctOptionIndex: correctIdx,
+        explanation: q.explanation || 'Review course section notes for explanation.'
+      };
+    });
+    return {
+      ...quiz,
+      title: quiz.title || 'Assessment Quiz',
+      passingScorePct: typeof quiz.passingScorePct === 'number' ? quiz.passingScorePct : 80,
+      questions: normalizedQuestions,
+    };
+  };
+
   const loadExistingCourse = async (id: string) => {
     try {
       const res = await apiClient.get(`/courses/${id}`);
@@ -75,7 +109,7 @@ export default function AICourseBuilderPage() {
       if (courseData) {
         setDraft({
           course: courseData,
-          quiz: courseData.quizzes?.[0] || { title: `${courseData.title} Assessment`, passingScorePct: 80, questions: [] },
+          quiz: normalizeQuizData(courseData.quizzes?.[0]),
         });
         setTopic(courseData.title || '');
         setActiveTab('edit-modules');
@@ -152,7 +186,10 @@ export default function AICourseBuilderPage() {
         moduleCount: parseInt(moduleCount, 10),
       });
 
-      setDraft(res.data);
+      setDraft({
+        ...res.data,
+        quiz: normalizeQuizData(res.data?.quiz || res.data?.quizzes?.[0]),
+      });
       setActiveTab('preview');
 
       Swal.fire({
@@ -196,8 +233,14 @@ export default function AICourseBuilderPage() {
       if (res.data && res.data.questions) {
         const transformedQuestions = res.data.questions.map((q: any) => {
           const rawOptions = q.options || [];
-          const optionsStrings = rawOptions.map((o: any) => typeof o === 'string' ? o : (o.optionText || 'Option'));
-          let correctIdx = rawOptions.findIndex((o: any) => typeof o === 'object' && o.isCorrect);
+          const optionsStrings = rawOptions.map((o: any, idx: number) => {
+            if (typeof o === 'string') return o;
+            if (typeof o === 'object' && o !== null) {
+              return o.optionText || o.text || o.option || o.label || o.value || o.answer || `Option ${idx + 1}`;
+            }
+            return String(o || `Option ${idx + 1}`);
+          });
+          let correctIdx = rawOptions.findIndex((o: any) => typeof o === 'object' && o !== null ? o.isCorrect : false);
           if (correctIdx === -1) correctIdx = 0;
           return {
             ...q,
@@ -1032,33 +1075,40 @@ export default function AICourseBuilderPage() {
 
                         {/* Options List */}
                         <div className="space-y-3 pl-2">
-                          {q.options?.map((opt: string, optIdx: number) => (
-                            <div key={optIdx} className="flex items-center gap-3">
-                              <input
-                                type="radio"
-                                name={`correct-${qIdx}`}
-                                checked={q.correctOptionIndex === optIdx}
-                                onChange={() =>
-                                  handleUpdateQuestion(qIdx, { ...q, correctOptionIndex: optIdx })
-                                }
-                                className="w-4 h-4 text-[#4d44e3] bg-slate-900 border-slate-700 focus:ring-[#4d44e3] focus:ring-offset-slate-900 cursor-pointer"
-                              />
-                              <input
-                                type="text"
-                                value={opt}
-                                onChange={(e) => {
-                                  const newOpts = [...q.options];
-                                  newOpts[optIdx] = e.target.value;
-                                  handleUpdateQuestion(qIdx, { ...q, options: newOpts });
-                                }}
-                                className={`flex-1 font-inter text-sm px-4 py-2.5 rounded-xl border focus:outline-none transition-colors ${
-                                  q.correctOptionIndex === optIdx
-                                    ? 'bg-emerald-950/30 border-emerald-800 text-emerald-100 font-medium'
-                                    : 'bg-slate-900 border-slate-800 text-slate-300 focus:border-slate-600'
-                                }`}
-                              />
-                            </div>
-                          ))}
+                          {q.options?.map((opt: any, optIdx: number) => {
+                            const optStr = typeof opt === 'string' ? opt : (opt?.optionText || opt?.text || opt?.option || opt?.label || opt?.value || opt?.answer || `Option ${optIdx + 1}`);
+                            return (
+                              <div key={optIdx} className="flex items-center gap-3">
+                                <input
+                                  type="radio"
+                                  name={`correct-${qIdx}`}
+                                  checked={q.correctOptionIndex === optIdx}
+                                  onChange={() =>
+                                    handleUpdateQuestion(qIdx, { ...q, correctOptionIndex: optIdx })
+                                  }
+                                  className="w-4 h-4 text-[#4d44e3] bg-slate-900 border-slate-700 focus:ring-[#4d44e3] focus:ring-offset-slate-900 cursor-pointer"
+                                />
+                                <input
+                                  type="text"
+                                  value={optStr}
+                                  onChange={(e) => {
+                                    const newOpts = [...q.options];
+                                    if (typeof newOpts[optIdx] === 'object' && newOpts[optIdx] !== null) {
+                                      newOpts[optIdx] = { ...newOpts[optIdx], optionText: e.target.value };
+                                    } else {
+                                      newOpts[optIdx] = e.target.value;
+                                    }
+                                    handleUpdateQuestion(qIdx, { ...q, options: newOpts });
+                                  }}
+                                  className={`flex-1 font-inter text-sm px-4 py-2.5 rounded-xl border focus:outline-none transition-colors ${
+                                    q.correctOptionIndex === optIdx
+                                      ? 'bg-emerald-950/30 border-emerald-800 text-emerald-100 font-medium'
+                                      : 'bg-slate-900 border-slate-800 text-slate-300 focus:border-slate-600'
+                                  }`}
+                                />
+                              </div>
+                            );
+                          })}
                         </div>
 
                         {/* Explanation */}
