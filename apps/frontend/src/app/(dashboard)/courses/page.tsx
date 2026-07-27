@@ -14,6 +14,14 @@ import {
   ChevronDown,
   ShieldAlert,
   Plus as PlusIcon,
+  Edit,
+  Eye,
+  Copy,
+  Archive,
+  Trash2,
+  CheckCircle,
+  XCircle,
+  FileText,
 } from 'lucide-react';
 import { apiClient } from '../../../lib/api-client';
 
@@ -31,6 +39,19 @@ export default function CoursesPage() {
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [enrollingId, setEnrollingId] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('lms_user');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          setIsAdmin(parsed.role === 'ADMIN');
+        } catch {}
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -50,14 +71,19 @@ export default function CoursesPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
+      const userStr = typeof window !== 'undefined' ? localStorage.getItem('lms_user') : null;
+      const userObj = userStr ? JSON.parse(userStr) : null;
+      const adminRole = userObj?.role === 'ADMIN';
+      if (adminRole) setIsAdmin(true);
+
       const params = new URLSearchParams();
       if (selectedCategory !== 'ALL') params.append('category', selectedCategory);
       if (selectedDifficulty !== 'ALL') params.append('difficulty', selectedDifficulty);
       if (searchQuery) params.append('search', searchQuery);
 
       const [catalogRes, myCoursesRes, categoriesRes] = await Promise.all([
-        apiClient.get(`/courses/catalog?${params.toString()}`),
-        apiClient.get('/enrollments/my-courses'),
+        apiClient.get(adminRole ? `/courses?${params.toString()}` : `/courses/catalog?${params.toString()}`),
+        adminRole ? Promise.resolve({ data: [] }) : apiClient.get('/enrollments/my-courses'),
         apiClient.get('/courses/categories'),
       ]);
 
@@ -99,9 +125,8 @@ export default function CoursesPage() {
       const user = userStr ? JSON.parse(userStr) : null;
       if (!user) return;
 
-      await apiClient.post('/enrollments/assign', {
+      await apiClient.post('/enrollments/self-enroll', {
         courseId,
-        userIds: [user.id],
       });
 
       Swal.fire({
@@ -123,6 +148,70 @@ export default function CoursesPage() {
       console.error('Enrollment error:', err);
     } finally {
       setEnrollingId(null);
+    }
+  };
+
+  const handleTogglePublish = async (course: any) => {
+    try {
+      const action = course.status === 'PUBLISHED' ? 'unpublish' : 'publish';
+      await apiClient.post(`/courses/${course.id}/${action}`);
+      Swal.fire({
+        icon: 'success',
+        title: course.status === 'PUBLISHED' ? 'Course Unpublished' : 'Course Published',
+        timer: 1500,
+        showConfirmButton: false,
+      });
+      fetchData();
+    } catch (err) {
+      Swal.fire({ icon: 'error', title: 'Action Failed', text: 'Could not change course status.' });
+    }
+  };
+
+  const handleDuplicate = async (courseId: string) => {
+    try {
+      await apiClient.post(`/courses/${courseId}/clone`);
+      Swal.fire({ icon: 'success', title: 'Course Duplicated', timer: 1500, showConfirmButton: false });
+      fetchData();
+    } catch (err) {
+      Swal.fire({ icon: 'error', title: 'Action Failed', text: 'Could not duplicate course.' });
+    }
+  };
+
+  const handleArchive = async (courseId: string) => {
+    const res = await Swal.fire({
+      title: 'Archive Course?',
+      text: 'Archived courses are hidden from the training catalog.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#f59e0b',
+      confirmButtonText: 'Yes, Archive',
+    });
+    if (!res.isConfirmed) return;
+    try {
+      await apiClient.post(`/courses/${courseId}/archive`);
+      Swal.fire({ icon: 'success', title: 'Course Archived', timer: 1500, showConfirmButton: false });
+      fetchData();
+    } catch (err) {
+      Swal.fire({ icon: 'error', title: 'Action Failed', text: 'Could not archive course.' });
+    }
+  };
+
+  const handleDelete = async (courseId: string) => {
+    const res = await Swal.fire({
+      title: 'Delete Course?',
+      text: 'This action cannot be undone. Courses with existing enrollments will be soft-deleted (archived).',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      confirmButtonText: 'Yes, Delete',
+    });
+    if (!res.isConfirmed) return;
+    try {
+      await apiClient.delete(`/courses/${courseId}`);
+      Swal.fire({ icon: 'success', title: 'Course Deleted', timer: 1500, showConfirmButton: false });
+      fetchData();
+    } catch (err) {
+      Swal.fire({ icon: 'error', title: 'Action Failed', text: 'Could not delete course.' });
     }
   };
 
@@ -151,43 +240,47 @@ export default function CoursesPage() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-slate-200 pb-8">
         <div>
           <h1 className="font-geist text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">
-            {activeTab === 'catalog' ? 'Course Catalog' : 'My Courses'}
+            {isAdmin ? 'Admin Course Catalog' : (activeTab === 'catalog' ? 'Course Catalog' : 'My Courses')}
           </h1>
           <p className="text-slate-500 mt-2 text-sm font-medium">
-            {activeTab === 'catalog'
-              ? 'Explore and enroll in operational training modules across service lines.'
-              : 'Track your active training progress and review completed certifications.'}
+            {isAdmin
+              ? 'Manage courses: open, edit, preview, publish, duplicate, archive, or delete modules.'
+              : (activeTab === 'catalog'
+                ? 'Explore and enroll in operational training modules across service lines.'
+                : 'Track your active training progress and review completed certifications.')}
           </p>
         </div>
 
-        {/* Premium Tab Selector */}
-        <div className="flex bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200/50 backdrop-blur-md shadow-inner">
-          <button
-            onClick={() => setActiveTab('catalog')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-geist text-xs font-bold transition-all duration-300 ${
-              activeTab === 'catalog'
-                ? 'bg-white text-[#4d44e3] shadow-md shadow-slate-200/50 scale-[1.02]'
-                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
-            }`}
-          >
-            <BookOpen className="w-4 h-4" /> Training Catalog
-          </button>
-          <button
-            onClick={() => setActiveTab('my-courses')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-geist text-xs font-bold transition-all duration-300 relative ${
-              activeTab === 'my-courses'
-                ? 'bg-[#4d44e3] text-white shadow-md shadow-indigo-300/50 scale-[1.02]'
-                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
-            }`}
-          >
-            <Clock className="w-4 h-4" /> My Courses
-            {inProgressEnrollments.length > 0 && (
-              <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === 'my-courses' ? 'bg-white/20' : 'bg-[#4d44e3] text-white'}`}>
-                {inProgressEnrollments.length}
-              </span>
-            )}
-          </button>
-        </div>
+        {/* Premium Tab Selector (Hidden for Admins) */}
+        {!isAdmin && (
+          <div className="flex bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200/50 backdrop-blur-md shadow-inner">
+            <button
+              onClick={() => setActiveTab('catalog')}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-geist text-xs font-bold transition-all duration-300 ${
+                activeTab === 'catalog'
+                  ? 'bg-white text-[#4d44e3] shadow-md shadow-slate-200/50 scale-[1.02]'
+                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+              }`}
+            >
+              <BookOpen className="w-4 h-4" /> Training Catalog
+            </button>
+            <button
+              onClick={() => setActiveTab('my-courses')}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-geist text-xs font-bold transition-all duration-300 relative ${
+                activeTab === 'my-courses'
+                  ? 'bg-[#4d44e3] text-white shadow-md shadow-indigo-300/50 scale-[1.02]'
+                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+              }`}
+            >
+              <Clock className="w-4 h-4" /> My Courses
+              {inProgressEnrollments.length > 0 && (
+                <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === 'my-courses' ? 'bg-white/20' : 'bg-[#4d44e3] text-white'}`}>
+                  {inProgressEnrollments.length}
+                </span>
+              )}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Catalog View */}
@@ -279,6 +372,14 @@ export default function CoursesPage() {
                           <ShieldAlert className="w-3 h-3" /> Required
                         </div>
                       )}
+
+                      {isAdmin && (
+                        <div className={`absolute bottom-3 left-3 px-2.5 py-1 rounded-md font-geist text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-md ${
+                          course.status === 'PUBLISHED' ? 'bg-emerald-500 text-white' : course.status === 'ARCHIVED' ? 'bg-amber-500 text-white' : 'bg-slate-700 text-white'
+                        }`}>
+                          {course.status || 'DRAFT'}
+                        </div>
+                      )}
                     </div>
 
                     <div className="p-6 flex-1 flex flex-col justify-between relative">
@@ -311,8 +412,72 @@ export default function CoursesPage() {
                         </p>
                       </div>
 
-                      <div className="mt-auto">
-                        {isEnrolled ? (
+                      <div className="mt-auto pt-4 border-t border-slate-100">
+                        {isAdmin ? (
+                          <div className="space-y-2">
+                            <div className="grid grid-cols-3 gap-1.5">
+                              <Link
+                                href={`/admin/courses/builder?id=${course.id}`}
+                                className="flex items-center justify-center gap-1 bg-[#4d44e3] text-white py-2 px-2 rounded-xl font-semibold text-xs hover:bg-[#3b32d1] transition-all shadow-sm"
+                              >
+                                <FileText className="w-3.5 h-3.5" />
+                                <span>Open</span>
+                              </Link>
+                              <Link
+                                href={`/admin/courses/builder?id=${course.id}`}
+                                className="flex items-center justify-center gap-1 bg-indigo-50 text-[#4d44e3] py-2 px-2 rounded-xl font-semibold text-xs hover:bg-indigo-100 transition-all border border-indigo-100"
+                              >
+                                <Edit className="w-3.5 h-3.5" />
+                                <span>Edit</span>
+                              </Link>
+                              <Link
+                                href={`/courses/${course.id}`}
+                                className="flex items-center justify-center gap-1 bg-slate-100 text-slate-700 py-2 px-2 rounded-xl font-semibold text-xs hover:bg-slate-200 transition-all"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                                <span>Preview</span>
+                              </Link>
+                            </div>
+                            <div className="grid grid-cols-4 gap-1">
+                              <button
+                                onClick={() => handleTogglePublish(course)}
+                                title={course.status === 'PUBLISHED' ? 'Unpublish' : 'Publish'}
+                                className={`flex items-center justify-center py-2 px-1 rounded-xl font-semibold text-[11px] transition-all ${
+                                  course.status === 'PUBLISHED'
+                                    ? 'bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200'
+                                    : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
+                                }`}
+                              >
+                                {course.status === 'PUBLISHED' ? <XCircle className="w-3.5 h-3.5" /> : <CheckCircle className="w-3.5 h-3.5" />}
+                                <span className="ml-1 truncate">{course.status === 'PUBLISHED' ? 'Unpub' : 'Pub'}</span>
+                              </button>
+                              <button
+                                onClick={() => handleDuplicate(course.id)}
+                                title="Duplicate"
+                                className="flex items-center justify-center py-2 px-1 rounded-xl font-semibold text-[11px] bg-blue-50 text-blue-600 hover:bg-blue-100 transition-all border border-blue-200"
+                              >
+                                <Copy className="w-3.5 h-3.5" />
+                                <span className="ml-1">Clone</span>
+                              </button>
+                              <button
+                                onClick={() => handleArchive(course.id)}
+                                title="Archive"
+                                className="flex items-center justify-center py-2 px-1 rounded-xl font-semibold text-[11px] bg-slate-50 text-slate-600 hover:bg-slate-100 transition-all border border-slate-200"
+                              >
+                                <Archive className="w-3.5 h-3.5" />
+                                <span className="ml-1">Arch</span>
+                              </button>
+                              <button
+                                onClick={() => handleDelete(course.id)}
+                                title="Delete"
+                                className="flex items-center justify-center py-2 px-1 rounded-xl font-semibold text-[11px] bg-rose-50 text-rose-600 hover:bg-rose-100 transition-all border border-rose-200"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span className="ml-1">Del</span>
+                              </button>
+                            </div>
+                          </div>
+                        ) : isEnrolled ? (
                           <Link
                             href={`/courses/${course.id}`}
                             className="w-full flex items-center justify-center gap-2 bg-emerald-50 text-emerald-600 py-3 px-4 rounded-xl font-semibold text-sm hover:bg-emerald-100 transition-colors border border-emerald-100"

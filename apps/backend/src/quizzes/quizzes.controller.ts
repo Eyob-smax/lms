@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { QuizzesService } from './quizzes.service';
@@ -33,6 +33,20 @@ export class QuizzesController {
     return this.quizzesService.addQuestion(createQuestionDto);
   }
 
+  @ApiOperation({ summary: 'Update a question (Admin only)' })
+  @Roles(Role.ADMIN)
+  @Patch('questions/:questionId')
+  async updateQuestion(@Param('questionId') questionId: string, @Body() body: any) {
+    return this.quizzesService.updateQuestion(questionId, body);
+  }
+
+  @ApiOperation({ summary: 'Delete a question (Admin only)' })
+  @Roles(Role.ADMIN)
+  @Delete('questions/:questionId')
+  async deleteQuestion(@Param('questionId') questionId: string) {
+    return this.quizzesService.deleteQuestion(questionId);
+  }
+
   @ApiOperation({ summary: 'Get quiz attempt detailed drill-down and missed questions analysis' })
   @ApiResponse({ status: 200, description: 'Detailed attempt breakdown with question-by-question correctness, explanations, and missed questions' })
   @Get('attempts/:attemptId')
@@ -59,6 +73,34 @@ export class QuizzesController {
   @Get(':id')
   async findQuiz(@Param('id') id: string) {
     return this.quizzesService.findQuiz(id);
+  }
+
+  @ApiOperation({ summary: 'Update quiz metadata (Admin only)' })
+  @Roles(Role.ADMIN)
+  @Patch(':id')
+  async updateQuiz(@Param('id') id: string, @Body() body: any) {
+    return this.quizzesService.updateQuiz(id, body);
+  }
+
+  @ApiOperation({ summary: 'Delete a quiz (Admin only)' })
+  @Roles(Role.ADMIN)
+  @Delete(':id')
+  async deleteQuiz(@Param('id') id: string) {
+    return this.quizzesService.deleteQuiz(id);
+  }
+
+  @ApiOperation({ summary: 'Duplicate a quiz (Admin only)' })
+  @Roles(Role.ADMIN)
+  @Post(':id/duplicate')
+  async duplicateQuiz(@Param('id') id: string) {
+    return this.quizzesService.duplicateQuiz(id);
+  }
+
+  @ApiOperation({ summary: 'Reorder questions in a quiz (Admin only)' })
+  @Roles(Role.ADMIN)
+  @Patch(':id/reorder')
+  async reorderQuestions(@Param('id') id: string, @Body() body: { questionIds: string[] }) {
+    return this.quizzesService.reorderQuestions(id, body.questionIds);
   }
 
   @ApiOperation({ summary: 'Submit quiz attempt for auto-grading' })

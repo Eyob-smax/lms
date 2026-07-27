@@ -340,4 +340,106 @@ export class QuizzesService {
       })),
     };
   }
+
+  async updateQuiz(id: string, data: { title?: string; passingScorePct?: number; maxAttempts?: number; timeLimitMinutes?: number; randomize?: boolean }) {
+    const quiz = await this.prisma.quiz.findUnique({ where: { id } });
+    if (!quiz) throw new NotFoundException(`Quiz with ID "${id}" not found`);
+
+    return this.prisma.quiz.update({
+      where: { id },
+      data,
+      include: { questions: { orderBy: { order: 'asc' }, include: { options: true } } },
+    });
+  }
+
+  async deleteQuiz(id: string) {
+    const quiz = await this.prisma.quiz.findUnique({ where: { id } });
+    if (!quiz) throw new NotFoundException(`Quiz with ID "${id}" not found`);
+
+    return this.prisma.quiz.delete({ where: { id } });
+  }
+
+  async duplicateQuiz(id: string) {
+    const quiz = await this.findQuiz(id);
+    if (!quiz) throw new NotFoundException(`Quiz with ID "${id}" not found`);
+
+    const newQuiz = await this.prisma.quiz.create({
+      data: {
+        title: `${quiz.title} (Copy)`,
+        courseId: quiz.courseId,
+        passingScorePct: quiz.passingScorePct,
+        maxAttempts: quiz.maxAttempts,
+        timeLimitMinutes: quiz.timeLimitMinutes,
+        randomize: quiz.randomize,
+      },
+    });
+
+    for (const q of quiz.questions) {
+      const newQuestion = await this.prisma.quizQuestion.create({
+        data: {
+          quizId: newQuiz.id,
+          questionText: q.questionText,
+          questionType: q.questionType,
+          explanation: q.explanation,
+          points: q.points,
+          order: q.order,
+        },
+      });
+
+      for (const opt of q.options) {
+        await this.prisma.quizOption.create({
+          data: {
+            questionId: newQuestion.id,
+            optionText: opt.optionText,
+            isCorrect: opt.isCorrect,
+          },
+        });
+      }
+    }
+
+    return this.findQuiz(newQuiz.id);
+  }
+
+  async updateQuestion(questionId: string, data: { questionText?: string; questionType?: QuestionType; explanation?: string; points?: number; order?: number; options?: { optionText: string; isCorrect: boolean }[] }) {
+    const question = await this.prisma.quizQuestion.findUnique({ where: { id: questionId } });
+    if (!question) throw new NotFoundException(`Question with ID "${questionId}" not found`);
+
+    const { options, ...fields } = data;
+
+    if (options) {
+      await this.prisma.quizOption.deleteMany({ where: { questionId } });
+      for (const opt of options) {
+        await this.prisma.quizOption.create({
+          data: {
+            questionId,
+            optionText: opt.optionText,
+            isCorrect: opt.isCorrect,
+          },
+        });
+      }
+    }
+
+    return this.prisma.quizQuestion.update({
+      where: { id: questionId },
+      data: fields,
+      include: { options: true },
+    });
+  }
+
+  async deleteQuestion(questionId: string) {
+    const question = await this.prisma.quizQuestion.findUnique({ where: { id: questionId } });
+    if (!question) throw new NotFoundException(`Question with ID "${questionId}" not found`);
+
+    return this.prisma.quizQuestion.delete({ where: { id: questionId } });
+  }
+
+  async reorderQuestions(quizId: string, questionIds: string[]) {
+    for (let i = 0; i < questionIds.length; i++) {
+      await this.prisma.quizQuestion.update({
+        where: { id: questionIds[i] },
+        data: { order: i + 1 },
+      }).catch(() => {});
+    }
+    return this.findQuiz(quizId);
+  }
 }

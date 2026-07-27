@@ -1,13 +1,48 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { EnrollmentStatus } from '@prisma/client';
+import { CourseStatus, EnrollmentStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AssignCourseDto } from './dto/assign-course.dto';
 import { AssignCohortDto } from './dto/assign-cohort.dto';
 import { MarkLessonCompleteDto } from './dto/mark-lesson-complete.dto';
+import { SelfEnrollDto } from './dto/self-enroll.dto';
 
 @Injectable()
 export class EnrollmentsService {
   constructor(private prisma: PrismaService) {}
+
+  async selfEnroll(dto: SelfEnrollDto, userId: string) {
+    const course = await this.prisma.course.findUnique({ where: { id: dto.courseId } });
+    if (!course) {
+      throw new NotFoundException(`Course with ID "${dto.courseId}" not found`);
+    }
+    if (course.status !== CourseStatus.PUBLISHED) {
+      throw new BadRequestException('Cannot self-enroll in an unpublished course');
+    }
+
+    const existing = await this.prisma.enrollment.findFirst({
+      where: { userId, courseId: dto.courseId },
+      include: {
+        course: { select: { id: true, title: true, category: true } },
+      },
+    });
+
+    if (existing) {
+      return existing;
+    }
+
+    return this.prisma.enrollment.create({
+      data: {
+        userId,
+        courseId: dto.courseId,
+        isMandatory: false,
+        status: EnrollmentStatus.NOT_STARTED,
+        overallProgressPct: 0,
+      },
+      include: {
+        course: { select: { id: true, title: true, category: true } },
+      },
+    });
+  }
 
   async assignCourse(dto: AssignCourseDto, adminUserId: string) {
     const course = await this.prisma.course.findUnique({ where: { id: dto.courseId } });

@@ -80,6 +80,27 @@ export class CoursesController {
     return this.coursesService.publish(id);
   }
 
+  @Post(':id/unpublish')
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Unpublish a course' })
+  unpublish(@Param('id') id: string) {
+    return this.coursesService.unpublish(id);
+  }
+
+  @Post(':id/archive')
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Archive a course' })
+  archive(@Param('id') id: string) {
+    return this.coursesService.archive(id);
+  }
+
+  @Post(':id/clone')
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Duplicate/Clone a course' })
+  clone(@Param('id') id: string, @CurrentUser('id') userId: string) {
+    return this.coursesService.clone(id, userId);
+  }
+
   @Delete(':id')
   @Roles('ADMIN')
   @ApiOperation({ summary: 'Delete a course' })

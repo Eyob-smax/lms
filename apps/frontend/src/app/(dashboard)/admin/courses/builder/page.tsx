@@ -16,6 +16,9 @@ import {
   Trash2,
   FileText,
   Layers,
+  Eye,
+  Clock,
+  CheckCircle,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { apiClient } from '../../../../../lib/api-client';
@@ -33,6 +36,7 @@ export default function AICourseBuilderPage() {
   const [durationMinutes, setDurationMinutes] = useState('45');
   const [moduleCount, setModuleCount] = useState('3');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
 
   // Generated & Editable Draft State
   const [draft, setDraft] = useState<any>(null);
@@ -50,10 +54,65 @@ export default function AICourseBuilderPage() {
   const [isMandatory, setIsMandatory] = useState(true);
 
   const [isPublishing, setIsPublishing] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [previewLessons, setPreviewLessons] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     fetchUsers();
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const courseId = params.get('id');
+      if (courseId) {
+        loadExistingCourse(courseId);
+      }
+    }
   }, []);
+
+  const loadExistingCourse = async (id: string) => {
+    try {
+      const res = await apiClient.get(`/courses/${id}`);
+      const courseData = res.data?.data || res.data;
+      if (courseData) {
+        setDraft({
+          course: courseData,
+          quiz: courseData.quizzes?.[0] || { title: `${courseData.title} Assessment`, passingScorePct: 80, questions: [] },
+        });
+        setTopic(courseData.title || '');
+        setActiveTab('edit-modules');
+      }
+    } catch (err) {
+      console.warn('Failed to load existing course:', err);
+      Swal.fire({ icon: 'error', title: 'Error loading course', text: 'Could not load course data.' });
+    }
+  };
+
+  useEffect(() => {
+    if (!draft || !draft.course?.id) return;
+    const timer = setTimeout(async () => {
+      try {
+        await apiClient.put(`/ai-courses/draft/${draft.course.id}`, {
+          course: draft.course,
+          quiz: draft.quiz,
+        }).catch(async () => {
+          await apiClient.patch(`/courses/${draft.course.id}`, draft.course);
+        });
+        setLastSaved(new Date());
+      } catch (err) {
+        console.warn('Auto-save background error:', err);
+      }
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [draft]);
+
+  const toggleLessonPreview = (mIdx: number, lIdx: number) => {
+    const key = `${mIdx}-${lIdx}`;
+    setPreviewLessons(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const insertMarkdownSyntax = (mIdx: number, lIdx: number, prefix: string, suffix: string = '') => {
+    const current = draft.course?.modules?.[mIdx]?.lessons?.[lIdx]?.content || '';
+    handleUpdateLessonProperty(mIdx, lIdx, 'content', `${current}\n${prefix}${suffix}`);
+  };
 
   const fetchUsers = async () => {
     try {
@@ -116,6 +175,72 @@ export default function AICourseBuilderPage() {
       });
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const handleGenerateAIQuiz = async () => {
+    if (!draft) return;
+    setIsGeneratingQuiz(true);
+    try {
+      const allLessonsText = draft.course?.modules?.map((m: any) => 
+        m.lessons?.map((l: any) => `${l.title}\n${l.content}`).join('\n\n')
+      ).join('\n\n---MODULE---\n\n') || draft.course?.description || topic || 'General Course Content';
+
+      const res = await apiClient.post('/ai/generate-quiz', {
+        lessonTitle: draft.course?.title || draft.quiz?.title || topic || 'Course Assessment',
+        lessonContent: allLessonsText.slice(0, 10000),
+        questionCount: 5,
+        difficulty: draft.course?.difficulty || 'Intermediate',
+      });
+
+      if (res.data && res.data.questions) {
+        const transformedQuestions = res.data.questions.map((q: any) => {
+          const rawOptions = q.options || [];
+          const optionsStrings = rawOptions.map((o: any) => typeof o === 'string' ? o : (o.optionText || 'Option'));
+          let correctIdx = rawOptions.findIndex((o: any) => typeof o === 'object' && o.isCorrect);
+          if (correctIdx === -1) correctIdx = 0;
+          return {
+            ...q,
+            questionText: q.questionText || q.question || 'New Question',
+            questionType: q.questionType || 'multiple_choice',
+            options: optionsStrings.length >= 2 ? optionsStrings : ['True', 'False'],
+            correctOptionIndex: correctIdx,
+            explanation: q.explanation || 'Review course section notes for explanation.'
+          };
+        });
+
+        const existingQuestions = draft.quiz?.questions || [];
+        setDraft({
+          ...draft,
+          quiz: {
+            ...draft.quiz,
+            title: res.data.title || draft.quiz?.title || `${draft.course?.title || 'Course'} Assessment`,
+            passingScorePct: res.data.passingScorePct || draft.quiz?.passingScorePct || 80,
+            questions: [...existingQuestions, ...transformedQuestions],
+          },
+        });
+
+        Swal.fire({
+          title: 'Quiz Questions Generated!',
+          text: `Added ${transformedQuestions.length} AI-synthesized assessment questions based on your course modules.`,
+          icon: 'success',
+          confirmButtonColor: '#4d44e3',
+          timer: 2000,
+          showConfirmButton: false,
+          customClass: { popup: 'rounded-3xl shadow-xl' }
+        });
+      }
+    } catch (err: any) {
+      console.error('AI quiz generation error:', err);
+      Swal.fire({
+        title: 'Quiz Generation Failed',
+        text: err.response?.data?.message || 'Failed to generate AI quiz questions. Please try again.',
+        icon: 'error',
+        confirmButtonColor: '#4d44e3',
+        customClass: { popup: 'rounded-3xl shadow-xl', confirmButton: 'rounded-xl px-6 py-3 font-semibold' }
+      });
+    } finally {
+      setIsGeneratingQuiz(false);
     }
   };
 
@@ -589,6 +714,12 @@ export default function AICourseBuilderPage() {
                 </div>
 
                 <div className="flex items-center gap-3">
+                  {lastSaved && (
+                    <span className="text-[11px] text-slate-400 font-inter flex items-center gap-1">
+                      <Clock className="w-3 h-3 text-emerald-400" />
+                      <span>Auto-saved {lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    </span>
+                  )}
                   <button
                     onClick={handleSaveDraft}
                     disabled={isSaving}
@@ -599,7 +730,7 @@ export default function AICourseBuilderPage() {
                   </button>
 
                   <span className="font-geist text-[11px] font-extrabold tracking-widest text-emerald-400 bg-emerald-950/50 px-3 py-1.5 rounded-md border border-emerald-900 hidden sm:inline-block">
-                    AI DRAFT READY
+                    {draft.course?.version ? `v${draft.course.version} DRAFT` : 'AI DRAFT READY'}
                   </span>
                 </div>
               </div>
@@ -789,17 +920,50 @@ export default function AICourseBuilderPage() {
                               </div>
 
                               <div>
-                                <label className="block font-geist text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 flex items-center justify-between">
-                                  <span>Lesson Markdown Content (Rich Text / Code / Tables)</span>
-                                  <span className="text-slate-500 font-normal">Supports GitHub Flavored Markdown</span>
-                                </label>
-                                <textarea
-                                  rows={8}
-                                  value={les.content || ''}
-                                  onChange={(e) => handleUpdateLessonProperty(mIdx, lIdx, 'content', e.target.value)}
-                                  className="w-full font-mono text-xs text-slate-200 bg-slate-950 border border-slate-800 rounded-xl p-3.5 focus:outline-none focus:border-[#4d44e3] leading-relaxed resize-y"
-                                  placeholder="# Lesson Header&#10;&#10;Write comprehensive operational instructions here..."
-                                />
+                                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                                  <label className="block font-geist text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                                    <span>Lesson Markdown Content (Rich Text / Code / Tables)</span>
+                                    <span className="text-slate-500 font-normal hidden sm:inline">| Supports GitHub Flavored Markdown</span>
+                                  </label>
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    {!previewLessons[`${mIdx}-${lIdx}`] && (
+                                      <div className="flex items-center gap-1 bg-slate-950 px-2 py-1 rounded-lg border border-slate-800 text-[10px] text-slate-300">
+                                        <button type="button" onClick={() => insertMarkdownSyntax(mIdx, lIdx, '**Bold Text**')} className="hover:text-white px-1.5 py-0.5 font-bold rounded hover:bg-slate-800 transition-colors">B</button>
+                                        <button type="button" onClick={() => insertMarkdownSyntax(mIdx, lIdx, '*Italic Text*')} className="hover:text-white px-1.5 py-0.5 italic rounded hover:bg-slate-800 transition-colors">I</button>
+                                        <button type="button" onClick={() => insertMarkdownSyntax(mIdx, lIdx, '## ')} className="hover:text-white px-1.5 py-0.5 font-semibold rounded hover:bg-slate-800 transition-colors">H2</button>
+                                        <button type="button" onClick={() => insertMarkdownSyntax(mIdx, lIdx, '```\nCode Block\n```')} className="hover:text-white px-1.5 py-0.5 font-mono rounded hover:bg-slate-800 transition-colors">&lt;/&gt;</button>
+                                        <button type="button" onClick={() => insertMarkdownSyntax(mIdx, lIdx, '- Bullet item')} className="hover:text-white px-1.5 py-0.5 rounded hover:bg-slate-800 transition-colors">• List</button>
+                                        <button type="button" onClick={() => insertMarkdownSyntax(mIdx, lIdx, '| Col 1 | Col 2 |\n|---|---|\n| Val 1 | Val 2 |')} className="hover:text-white px-1.5 py-0.5 rounded hover:bg-slate-800 transition-colors">Table</button>
+                                      </div>
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleLessonPreview(mIdx, lIdx)}
+                                      className={`px-3 py-1 rounded-lg font-geist text-[11px] font-bold transition-all flex items-center gap-1 ${
+                                        previewLessons[`${mIdx}-${lIdx}`]
+                                          ? 'bg-[#4d44e3] text-white shadow-sm'
+                                          : 'bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700'
+                                      }`}
+                                    >
+                                      <Eye className="w-3 h-3" />
+                                      <span>{previewLessons[`${mIdx}-${lIdx}`] ? 'Edit Markdown' : 'Live Preview'}</span>
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {previewLessons[`${mIdx}-${lIdx}`] ? (
+                                  <div className="w-full min-h-[180px] bg-slate-950 border border-slate-800 rounded-xl p-4 text-slate-200 prose prose-invert max-w-none prose-sm leading-relaxed overflow-x-auto">
+                                    <ReactMarkdown>{les.content || '*No content written yet.*'}</ReactMarkdown>
+                                  </div>
+                                ) : (
+                                  <textarea
+                                    rows={8}
+                                    value={les.content || ''}
+                                    onChange={(e) => handleUpdateLessonProperty(mIdx, lIdx, 'content', e.target.value)}
+                                    className="w-full font-mono text-xs text-slate-200 bg-slate-950 border border-slate-800 rounded-xl p-3.5 focus:outline-none focus:border-[#4d44e3] leading-relaxed resize-y"
+                                    placeholder="# Lesson Header&#10;&#10;Write comprehensive operational instructions here..."
+                                  />
+                                )}
                               </div>
                             </div>
                           ))}
@@ -914,7 +1078,16 @@ export default function AICourseBuilderPage() {
                       </div>
                     ))}
 
-                    <div className="pt-4 text-center">
+                    <div className="pt-4 flex flex-wrap justify-center gap-4">
+                      <button
+                        type="button"
+                        onClick={handleGenerateAIQuiz}
+                        disabled={isGeneratingQuiz}
+                        className="px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-geist font-bold text-sm rounded-2xl shadow-lg shadow-indigo-500/25 transition-all inline-flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <Sparkles className={`w-4 h-4 ${isGeneratingQuiz ? 'animate-spin' : ''}`} />
+                        {isGeneratingQuiz ? 'Synthesizing Quiz Questions...' : 'Generate AI Quiz Questions'}
+                      </button>
                       <button
                         type="button"
                         onClick={handleAddQuestion}

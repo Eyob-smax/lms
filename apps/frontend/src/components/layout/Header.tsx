@@ -19,7 +19,6 @@ import {
   Moon,
 } from 'lucide-react';
 import { apiClient } from '../../lib/api-client';
-import Swal from 'sweetalert2';
 
 interface HeaderProps {
   user?: {
@@ -140,54 +139,13 @@ export default function Header({ user, onMenuToggle }: HeaderProps) {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('lms_access_token');
       localStorage.removeItem('lms_user');
+      localStorage.removeItem('lms_simulated_role');
+      localStorage.removeItem('lms_theme');
       router.push('/login');
     }
   };
 
-  const getRealRole = () => {
-    if ((currentUser as any)?.realRole) return (currentUser as any).realRole;
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('lms_user');
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          return parsed.role;
-        } catch {}
-      }
-    }
-    return currentUser?.role;
-  };
-  const realRole = getRealRole();
-  const isRealAdmin = realRole === 'ADMIN';
   const isAdmin = currentUser?.role === 'ADMIN';
-  const isSimulatedAgent = isRealAdmin && currentUser?.role === 'AGENT';
-
-  const handleSwitchRole = () => {
-    if (typeof window !== 'undefined') {
-      const currentSim = localStorage.getItem('lms_simulated_role');
-      if (currentSim === 'AGENT') {
-        localStorage.removeItem('lms_simulated_role');
-        Swal.fire({
-          title: 'Admin Role Restored',
-          text: 'You are now viewing the platform with full Administrator privileges.',
-          icon: 'info',
-          timer: 1500,
-          showConfirmButton: false,
-          customClass: { popup: 'rounded-2xl shadow-lg' }
-        }).then(() => window.location.reload());
-      } else {
-        localStorage.setItem('lms_simulated_role', 'AGENT');
-        Swal.fire({
-          title: 'Switched to Learner View',
-          text: 'You are now previewing the LMS as an Agent/Learner. Admin controls are hidden.',
-          icon: 'success',
-          timer: 1500,
-          showConfirmButton: false,
-          customClass: { popup: 'rounded-2xl shadow-lg' }
-        }).then(() => window.location.reload());
-      }
-    }
-  };
 
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-slate-200 min-h-[72px] flex items-center px-6 lg:px-8 w-full shadow-sm">
@@ -242,28 +200,13 @@ export default function Header({ user, onMenuToggle }: HeaderProps) {
 
         {/* Right Actions & User Menu */}
         <div className="flex items-center gap-4">
-          {isRealAdmin && (
-            <>
-              <button
-                onClick={handleSwitchRole}
-                className={`hidden sm:flex items-center gap-1.5 px-3 py-2 text-xs font-inter font-bold rounded-xl transition-all cursor-pointer ${
-                  isSimulatedAgent
-                    ? 'bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200 shadow-sm animate-pulse'
-                    : 'bg-slate-100 text-slate-700 hover:text-slate-900 hover:bg-slate-200'
-                }`}
-              >
-                <ShieldCheck className="w-4 h-4" />
-                <span>{isSimulatedAgent ? 'Exit Learner View' : ' Learner View'}</span>
-              </button>
-              {!isSimulatedAgent && (
-                <Link
-                  href="/admin/courses/builder"
-                  className="hidden sm:flex items-center gap-2 px-4 py-2 bg-[#4d44e3] hover:bg-[#3b32d1] text-white rounded-lg text-sm font-inter font-medium transition-colors shadow-sm"
-                >
-                  Create Course
-                </Link>
-              )}
-            </>
+          {isAdmin && (
+            <Link
+              href="/admin/courses/builder"
+              className="hidden sm:flex items-center gap-2 px-4 py-2 bg-[#4d44e3] hover:bg-[#3b32d1] text-white rounded-lg text-sm font-inter font-medium transition-colors shadow-sm"
+            >
+              Create Course
+            </Link>
           )}
 
           <div className="w-px h-6 bg-slate-200 hidden sm:block"></div>

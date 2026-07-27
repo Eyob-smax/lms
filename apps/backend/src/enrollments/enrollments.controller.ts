@@ -5,6 +5,7 @@ import { EnrollmentsService } from './enrollments.service';
 import { AssignCourseDto } from './dto/assign-course.dto';
 import { AssignCohortDto } from './dto/assign-cohort.dto';
 import { MarkLessonCompleteDto } from './dto/mark-lesson-complete.dto';
+import { SelfEnrollDto } from './dto/self-enroll.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -16,6 +17,14 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 @Controller('enrollments')
 export class EnrollmentsController {
   constructor(private readonly enrollmentsService: EnrollmentsService) {}
+
+  @ApiOperation({ summary: 'Agent self-enrollment into a published course (Agent only)' })
+  @ApiResponse({ status: 201, description: 'Successfully self-enrolled in course' })
+  @Roles(Role.AGENT)
+  @Post('self-enroll')
+  async selfEnroll(@Body() dto: SelfEnrollDto, @CurrentUser('id') userId: string) {
+    return this.enrollmentsService.selfEnroll(dto, userId);
+  }
 
   @ApiOperation({ summary: 'Assign course to users or target department (Admin only)' })
   @ApiResponse({ status: 201, description: 'Course assigned to agents' })

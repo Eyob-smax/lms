@@ -401,11 +401,22 @@ export class CoursesService {
   }
 
   async remove(id: string) {
-    const course = await this.prisma.course.findUnique({ where: { id } });
+    const course = await this.prisma.course.findUnique({
+      where: { id },
+      include: { _count: { select: { enrollments: true } } },
+    });
     if (!course) throw new NotFoundException(`Course with ID ${id} not found`);
 
+    if (course._count.enrollments > 0) {
+      // Soft delete by archiving to preserve historical enrollment records
+      return this.prisma.course.update({
+        where: { id },
+        data: { status: 'ARCHIVED' },
+      });
+    }
+
     return this.prisma.course.delete({
-      where: { id }
+      where: { id },
     });
   }
 }

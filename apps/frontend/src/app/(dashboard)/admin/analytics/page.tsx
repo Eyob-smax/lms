@@ -14,21 +14,18 @@ import {
   FileSpreadsheet,
   FileText,
 } from 'lucide-react';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Radar,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-} from 'recharts';
+import dynamic from 'next/dynamic';
 import { apiClient } from '../../../../lib/api-client';
+
+const CompletionTrendsChart = dynamic(
+  () => import('../../../../components/analytics/AnalyticsCharts').then((mod) => mod.CompletionTrendsChart),
+  { ssr: false, loading: () => <div className="w-full h-full bg-slate-50 animate-pulse rounded-2xl flex items-center justify-center text-xs text-slate-400 font-geist">Loading chart...</div> }
+);
+
+const SkillGapRadarChart = dynamic(
+  () => import('../../../../components/analytics/AnalyticsCharts').then((mod) => mod.SkillGapRadarChart),
+  { ssr: false, loading: () => <div className="w-full h-full bg-slate-50 animate-pulse rounded-2xl flex items-center justify-center text-xs text-slate-400 font-geist">Loading radar...</div> }
+);
 
 export default function AdminAnalyticsPage() {
   const router = useRouter();
@@ -37,8 +34,10 @@ export default function AdminAnalyticsPage() {
   const [overview, setOverview] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('lms_user');
       if (stored) {
@@ -294,19 +293,7 @@ export default function AdminAnalyticsPage() {
 
           {/* Visual Bar Chart Representation */}
           <div className="flex-1 w-full relative min-h-[280px] mt-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
-                <Tooltip
-                  cursor={{ fill: 'transparent' }}
-                  contentStyle={{ borderRadius: '16px', border: '1px solid #f1f5f9', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)' }}
-                />
-                <Bar dataKey="enrollments" fill="#4d44e3" radius={[4, 4, 0, 0]} maxBarSize={40} />
-                <Bar dataKey="completions" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={40} />
-              </BarChart>
-            </ResponsiveContainer>
+            <CompletionTrendsChart data={chartData} />
           </div>
         </div>
 
@@ -319,16 +306,7 @@ export default function AdminAnalyticsPage() {
             </p>
             
             <div className="w-full h-[260px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <RadarChart cx="50%" cy="50%" outerRadius="70%" data={skillGaps}>
-                  <PolarGrid stroke="#f1f5f9" />
-                  <PolarAngleAxis dataKey="subject" tick={{ fill: '#64748b', fontSize: 11, fontWeight: 600 }} />
-                  <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-                  <Radar name="Current" dataKey="A" stroke="#4d44e3" fill="#4d44e3" fillOpacity={0.4} />
-                  <Radar name="Target" dataKey="B" stroke="#10b981" fill="#10b981" fillOpacity={0.4} />
-                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}/>
-                </RadarChart>
-              </ResponsiveContainer>
+              <SkillGapRadarChart data={skillGaps} />
             </div>
           </div>
         </div>

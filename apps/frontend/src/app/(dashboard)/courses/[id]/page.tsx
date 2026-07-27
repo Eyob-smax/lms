@@ -36,6 +36,19 @@ export default function CourseReaderPage({ params }: { params: Promise<{ id: str
   const [completedLessonIds, setCompletedLessonIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [marking, setMarking] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('lms_user');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          setIsAdmin(parsed.role === 'ADMIN');
+        } catch {}
+      }
+    }
+  }, []);
 
   useEffect(() => {
     fetchCourseDetails();
@@ -285,29 +298,43 @@ export default function CourseReaderPage({ params }: { params: Promise<{ id: str
                 </button>
 
                 <div className="flex items-center gap-3">
-                  <button
-                    onClick={handleMarkComplete}
-                    disabled={marking}
-                    className="flex items-center gap-2 px-6 py-3 bg-[#4d44e3] text-white rounded-xl font-bold text-sm hover:bg-[#3b32d1] hover:shadow-lg hover:shadow-indigo-200 transition-all cursor-pointer disabled:opacity-50"
-                  >
-                    {marking ? (
-                      <span>Saving...</span>
-                    ) : (
-                      <>
-                        <Check className="w-4 h-4" />
-                        <span>Mark Complete & Next</span>
-                        <ChevronRight className="w-4 h-4" />
-                      </>
-                    )}
-                  </button>
+                  {isAdmin ? (
+                    <>
+                      <span className="px-4 py-2 bg-amber-100 text-amber-800 rounded-xl text-xs font-bold">Admin Preview Mode</span>
+                      <Link
+                        href={`/admin/courses/builder?id=${courseId}`}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-[#4d44e3] text-white rounded-xl font-bold text-sm hover:bg-[#3b32d1] transition-all"
+                      >
+                        <span>Edit Course in Studio</span>
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={handleMarkComplete}
+                        disabled={marking}
+                        className="flex items-center gap-2 px-6 py-3 bg-[#4d44e3] text-white rounded-xl font-bold text-sm hover:bg-[#3b32d1] hover:shadow-lg hover:shadow-indigo-200 transition-all cursor-pointer disabled:opacity-50"
+                      >
+                        {marking ? (
+                          <span>Saving...</span>
+                        ) : (
+                          <>
+                            <Check className="w-4 h-4" />
+                            <span>Mark Complete & Next</span>
+                            <ChevronRight className="w-4 h-4" />
+                          </>
+                        )}
+                      </button>
 
-                  {primaryQuiz && (
-                    <Link
-                      href={`/quizzes/${primaryQuiz.id}?enrollmentId=${enrollment?.id}`}
-                      className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-emerald-500 text-emerald-600 rounded-xl font-bold text-sm hover:bg-emerald-50 shadow-sm transition-all"
-                    >
-                      <Award className="w-4 h-4" /> Take Final Quiz
-                    </Link>
+                      {primaryQuiz && (
+                        <Link
+                          href={`/quizzes/${primaryQuiz.id}?enrollmentId=${enrollment?.id}`}
+                          className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-emerald-500 text-emerald-600 rounded-xl font-bold text-sm hover:bg-emerald-50 shadow-sm transition-all"
+                        >
+                          <Award className="w-4 h-4" /> Take Final Quiz
+                        </Link>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -328,34 +355,50 @@ export default function CourseReaderPage({ params }: { params: Promise<{ id: str
           {/* Progress Overview Card */}
           <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/40 space-y-5 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-50 rounded-full blur-2xl opacity-60"></div>
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <span className="font-geist text-sm font-bold text-slate-900">Course Progress</span>
-                <span className="font-geist text-sm font-extrabold text-[#4d44e3]">{enrollment?.overallProgressPct || 0}%</span>
-              </div>
-              <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden shadow-inner">
-                <div
-                  className="h-full bg-gradient-to-r from-[#4d44e3] to-[#8079ff] rounded-full transition-all duration-700 shadow-sm"
-                  style={{ width: `${enrollment?.overallProgressPct || 0}%` }}
-                />
-              </div>
-            </div>
-
-            {primaryQuiz && (
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col gap-3">
-                <div>
-                  <h4 className="font-geist text-sm font-bold text-slate-900">Assessment Quiz</h4>
-                  <p className="font-inter text-xs text-slate-500 mt-1">
-                    Passing threshold: <span className="font-semibold text-slate-700">{primaryQuiz.passingScorePct}%</span>
-                  </p>
+            {isAdmin ? (
+              <div className="space-y-4">
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs font-semibold">
+                  Admin Preview Mode — Enrolling and tracking progress is disabled for admin accounts.
                 </div>
                 <Link
-                  href={`/quizzes/${primaryQuiz.id}?enrollmentId=${enrollment?.id}`}
-                  className="w-full text-center py-2.5 bg-white border border-slate-300 hover:border-slate-400 text-slate-700 font-bold text-xs rounded-xl shadow-sm transition-all hover:shadow-md"
+                  href={`/admin/courses/builder?id=${courseId}`}
+                  className="w-full text-center py-3 bg-[#4d44e3] text-white font-bold text-xs rounded-xl shadow-sm hover:bg-[#3b32d1] block transition-all"
                 >
-                  Start Assessment
+                  Open in Studio Editor
                 </Link>
               </div>
+            ) : (
+              <>
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="font-geist text-sm font-bold text-slate-900">Course Progress</span>
+                    <span className="font-geist text-sm font-extrabold text-[#4d44e3]">{enrollment?.overallProgressPct || 0}%</span>
+                  </div>
+                  <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden shadow-inner">
+                    <div
+                      className="h-full bg-gradient-to-r from-[#4d44e3] to-[#8079ff] rounded-full transition-all duration-700 shadow-sm"
+                      style={{ width: `${enrollment?.overallProgressPct || 0}%` }}
+                    />
+                  </div>
+                </div>
+
+                {primaryQuiz && (
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col gap-3">
+                    <div>
+                      <h4 className="font-geist text-sm font-bold text-slate-900">Assessment Quiz</h4>
+                      <p className="font-inter text-xs text-slate-500 mt-1">
+                        Passing threshold: <span className="font-semibold text-slate-700">{primaryQuiz.passingScorePct}%</span>
+                      </p>
+                    </div>
+                    <Link
+                      href={`/quizzes/${primaryQuiz.id}?enrollmentId=${enrollment?.id}`}
+                      className="w-full text-center py-2.5 bg-white border border-slate-300 hover:border-slate-400 text-slate-700 font-bold text-xs rounded-xl shadow-sm transition-all hover:shadow-md"
+                    >
+                      Start Assessment
+                    </Link>
+                  </div>
+                )}
+              </>
             )}
           </div>
 
